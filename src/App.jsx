@@ -59,6 +59,7 @@ const AuthenticatedApp = () => {
           }
         />
       ))}
+      <Route path="/AdminBulkSMS" element={<LayoutWrapper currentPageName="AdminBulkSMS"><AdminBulkSMS /></LayoutWrapper>} />
       <Route path="*" element={<PageNotFound />} />
     </Routes>
   );
