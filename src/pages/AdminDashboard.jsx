@@ -309,12 +309,6 @@ export default function AdminDashboard() {
                 label="Disputes" 
                 desc="Handle user disputes"
               />
-              <QuickLink 
-                href={createPageUrl('AdminBulkSMS')} 
-                icon={MessageSquare} 
-                label="Bulk SMS" 
-                desc="Broadcast SMS to phone list"
-              />
             </CardContent>
           </Card>
         </div>
