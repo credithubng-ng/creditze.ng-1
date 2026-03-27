@@ -58,52 +58,53 @@ Deno.serve(async (req) => {
         }
 
         if (type === 'phone') {
-            // Send SMS via Termii (DND-bypass transactional route)
-            const termiiKey = Deno.env.get('TERMII_API_KEY');
+            // Send SMS via SmartSMS
+            const smartSmsToken = Deno.env.get('SMARTSMS_TOKEN');
             
-            if (!termiiKey) {
+            if (!smartSmsToken) {
                 return Response.json({ 
                     success: false,
                     error: 'SMS service not configured' 
                 }, { status: 500 });
             }
 
-            // Format phone: Termii expects 234XXXXXXXXX format
+            // Format phone to 0XXXXXXXXXX (local Nigerian format for SmartSMS)
             let formattedPhone = phone_number.toString().trim().replace(/\s+/g, '').replace(/[^0-9]/g, '');
             
             if (formattedPhone.startsWith('234')) {
-                formattedPhone = formattedPhone.substring(3);
+                formattedPhone = '0' + formattedPhone.substring(3);
             }
-            while (formattedPhone.startsWith('0')) {
-                formattedPhone = formattedPhone.substring(1);
+            if (!formattedPhone.startsWith('0')) {
+                formattedPhone = '0' + formattedPhone;
             }
-            if (formattedPhone.length !== 10) {
+            if (formattedPhone.length !== 11) {
                 return Response.json({ 
                     success: false,
                     error: 'Invalid phone number format' 
                 }, { status: 400 });
             }
-            formattedPhone = '234' + formattedPhone;
 
-            console.log('Sending SMS via Termii to:', formattedPhone);
+            console.log('Sending SMS via SmartSMS to:', formattedPhone);
 
-            const smsResponse = await fetch('https://v3.api.termii.com/api/sms/send', {
+            const smsResponse = await fetch('https://smartsmssolutions.com/api/json.php', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
+                    token: smartSmsToken,
+                    sender: 'Creditze',
                     to: formattedPhone,
-                    from: 'N-Alert',
-                    sms: `Your Creditze verification code is: ${otp}. Valid for 10 minutes. Do not share this code.`,
-                    type: 'plain',
-                    channel: 'dnd',
-                    api_key: termiiKey
+                    message: `Your Creditze verification code is: ${otp}. Valid for 10 minutes. Do not share this code.`,
+                    type: '0',
+                    routing: '3',
+                    ref_id: `OTP_${user.id}_${Date.now()}`
                 })
             });
 
             const smsData = await smsResponse.json();
-            console.log('Termii response:', JSON.stringify(smsData));
+            console.log('SmartSMS response:', JSON.stringify(smsData));
 
-            if (!smsResponse.ok || smsData.code === 'error') {
+            // SmartSMS returns 1001 for success
+            if (!smsResponse.ok || (smsData.code && smsData.code !== 1001)) {
                 return Response.json({ 
                     success: false, 
                     error: smsData.message || 'Failed to send SMS.'
