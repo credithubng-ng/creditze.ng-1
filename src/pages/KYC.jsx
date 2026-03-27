@@ -375,6 +375,26 @@ export default function KYC() {
     }
   };
 
+  const skipNIN = async () => {
+    if (!formData.nin || formData.nin.length !== 11) {
+      setError('Please enter your 11-digit NIN before continuing');
+      return;
+    }
+    setSaving(true);
+    try {
+      await base44.entities.KYCProfile.update(kyc.id, {
+        nin: formData.nin,
+        nin_verified: false
+      });
+      setCurrentStep(4);
+      setError(null);
+    } catch (err) {
+      setError('Failed to save NIN. Please try again.');
+    } finally {
+      setSaving(false);
+    }
+  };
+
   const saveAddress = async () => {
       if (!formData.residential_address || !formData.city || !formData.residential_state || !formData.residential_lga) {
         setError('Please fill in all address fields');
