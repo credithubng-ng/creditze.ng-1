@@ -86,28 +86,32 @@ Deno.serve(async (req) => {
 
             console.log('Sending SMS via SmartSMS to:', formattedPhone);
 
+            const formData = new URLSearchParams();
+            formData.append('token', smartSmsToken);
+            formData.append('sender', 'Creditze');
+            formData.append('to', formattedPhone);
+            formData.append('message', `Your Creditze verification code is: ${otp}. Valid for 10 minutes. Do not share this code.`);
+            formData.append('type', '0');
+            formData.append('routing', '3');
+            formData.append('ref_id', `OTP_${user.id}_${Date.now()}`);
+
             const smsResponse = await fetch('https://smartsmssolutions.com/api/json.php', {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    token: smartSmsToken,
-                    sender: 'Creditze',
-                    to: formattedPhone,
-                    message: `Your Creditze verification code is: ${otp}. Valid for 10 minutes. Do not share this code.`,
-                    type: '0',
-                    routing: '3',
-                    ref_id: `OTP_${user.id}_${Date.now()}`
-                })
+                headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                body: formData.toString()
             });
 
-            const smsData = await smsResponse.json();
-            console.log('SmartSMS response:', JSON.stringify(smsData));
+            const smsRawText = await smsResponse.text();
+            console.log('SmartSMS raw response:', smsResponse.status, smsRawText);
+            
+            let smsData = {};
+            try { smsData = JSON.parse(smsRawText); } catch(e) { /* not json */ }
 
-            // SmartSMS returns 1001 for success
-            if (!smsResponse.ok || (smsData.code && smsData.code !== 1001)) {
+            // SmartSMS returns code 1000 for success (even for DND numbers, it attempts delivery)
+            if (!smsResponse.ok || (smsData.code && smsData.code !== 1000)) {
                 return Response.json({ 
                     success: false, 
-                    error: smsData.message || 'Failed to send SMS.'
+                    error: smsData.comment || smsRawText || 'Failed to send SMS.'
                 }, { status: 400 });
             }
 

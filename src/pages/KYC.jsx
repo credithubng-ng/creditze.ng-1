@@ -692,17 +692,15 @@ export default function KYC() {
                     {saving ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
                     Verify BVN <ArrowRight className="ml-2 w-4 h-4" />
                   </Button>
-                  {error && (
-                    <Button
-                      variant="outline"
-                      className="w-full border-amber-300 text-amber-700 hover:bg-amber-50"
-                      onClick={skipBVN}
-                      disabled={saving}
-                    >
-                      {saving ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
-                      Continue Without BVN Verification
-                    </Button>
-                  )}
+                  <Button
+                    variant="outline"
+                    className="w-full border-amber-300 text-amber-700 hover:bg-amber-50"
+                    onClick={skipBVN}
+                    disabled={saving}
+                  >
+                    {saving ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
+                    Continue Without BVN Verification
+                  </Button>
                 </CardContent>
               </Card>
             )}
@@ -736,6 +734,15 @@ export default function KYC() {
                   >
                     {saving ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
                     Verify NIN <ArrowRight className="ml-2 w-4 h-4" />
+                  </Button>
+                  <Button
+                    variant="outline"
+                    className="w-full border-amber-300 text-amber-700 hover:bg-amber-50"
+                    onClick={skipNIN}
+                    disabled={saving}
+                  >
+                    {saving ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
+                    Continue Without NIN Verification
                   </Button>
                 </CardContent>
               </Card>
