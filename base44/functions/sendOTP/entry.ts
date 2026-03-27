@@ -58,100 +58,55 @@ Deno.serve(async (req) => {
         }
 
         if (type === 'phone') {
-            // Send SMS via SmartSMS (temporary - MTN DND restrictions apply)
-            const smartSmsToken = Deno.env.get('SMARTSMS_TOKEN');
+            // Send SMS via Termii (DND-bypass transactional route)
+            const termiiKey = Deno.env.get('TERMII_API_KEY');
             
-            if (!smartSmsToken) {
+            if (!termiiKey) {
                 return Response.json({ 
                     success: false,
                     error: 'SMS service not configured' 
                 }, { status: 500 });
             }
 
-            // Format phone: SmartSMS expects 234XXXXXXXXX format
+            // Format phone: Termii expects 234XXXXXXXXX format
             let formattedPhone = phone_number.toString().trim().replace(/\s+/g, '').replace(/[^0-9]/g, '');
             
-            // Remove +234 or 234 prefix if present
             if (formattedPhone.startsWith('234')) {
                 formattedPhone = formattedPhone.substring(3);
             }
-            
-            // Remove leading zeros
             while (formattedPhone.startsWith('0')) {
                 formattedPhone = formattedPhone.substring(1);
             }
-            
-            // Validate 10 digits
             if (formattedPhone.length !== 10) {
                 return Response.json({ 
                     success: false,
                     error: 'Invalid phone number format' 
                 }, { status: 400 });
             }
-            
-            // Add country code
             formattedPhone = '234' + formattedPhone;
 
-            const formData = new FormData();
-            formData.append('token', smartSmsToken);
-            formData.append('sender', 'Transbill');
-            formData.append('to', formattedPhone);
-            formData.append('message', `Your Creditze verification code is: ${otp}. Valid for 10 minutes.`);
-            formData.append('type', '0');
-            formData.append('routing', '3');
+            console.log('Sending SMS via Termii to:', formattedPhone);
 
-            console.log('Sending SMS to:', formattedPhone);
-
-            const smsResponse = await fetch('https://smartsmssolutions.com/api/json.php', {
+            const smsResponse = await fetch('https://v3.api.termii.com/api/sms/send', {
                 method: 'POST',
-                body: formData
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    to: formattedPhone,
+                    from: 'talert',
+                    sms: `Your Creditze verification code is: ${otp}. Valid for 10 minutes. Do not share this code.`,
+                    type: 'plain',
+                    channel: 'generic',
+                    api_key: termiiKey
+                })
             });
 
-            console.log('SMS Response status:', smsResponse.status);
-
-            if (!smsResponse.ok) {
-                console.error('SMS API HTTP error:', smsResponse.status);
-                return Response.json({ 
-                    success: false, 
-                    error: 'SMS service temporarily unavailable. You can continue without verification.'
-                }, { status: 400 });
-            }
-
             const smsData = await smsResponse.json();
-            
-            console.log('SmartSMS full response:', JSON.stringify(smsData));
-            
-            if (smsData.code !== 1000 && smsData.code !== '1000') {
-                console.error('SmartSMS error:', smsData);
-                return Response.json({ 
-                    success: false, 
-                    error: smsData.comment || smsData.error || 'Failed to send SMS.'
-                }, { status: 400 });
-            }
+            console.log('Termii response:', JSON.stringify(smsData));
 
-            // Check if message was scheduled (MTN time restriction) - OTP will expire before delivery
-            if (smsData.schedule === true || smsData.scheduled) {
-                console.error('SMS scheduled for later, not immediate:', smsData.scheduled);
+            if (!smsResponse.ok || smsData.code === 'error') {
                 return Response.json({ 
                     success: false, 
-                    error: 'SMS delivery is delayed due to carrier restrictions. Please try again between 8am–9pm, or use a non-MTN number.'
-                }, { status: 400 });
-            }
-
-            // Check if number is on DND (API returns 1000 but dnd_numbers is populated)
-            if (smsData.dnd_numbers && smsData.dnd_numbers.includes(formattedPhone)) {
-                console.error('Number is on DND:', formattedPhone);
-                return Response.json({ 
-                    success: false, 
-                    error: 'This number is registered on the DND list. SMS cannot be delivered. Please use a different number.'
-                }, { status: 400 });
-            }
-
-            // Check if number failed to send
-            if (smsData.failed && smsData.failed.includes(formattedPhone)) {
-                return Response.json({ 
-                    success: false, 
-                    error: 'Failed to deliver SMS to this number. Please check the number and try again.'
+                    error: smsData.message || 'Failed to send SMS.'
                 }, { status: 400 });
             }
 
