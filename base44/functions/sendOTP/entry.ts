@@ -92,10 +92,10 @@ Deno.serve(async (req) => {
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     to: formattedPhone,
-                    from: 'talert',
+                    from: 'N-Alert',
                     sms: `Your Creditze verification code is: ${otp}. Valid for 10 minutes. Do not share this code.`,
                     type: 'plain',
-                    channel: 'generic',
+                    channel: 'dnd',
                     api_key: termiiKey
                 })
             });
