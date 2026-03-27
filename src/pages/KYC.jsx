@@ -92,7 +92,7 @@ export default function KYC() {
         // Find the first incomplete step
         if (!kycData[0].full_name || !kycData[0].date_of_birth || !kycData[0].gender) setCurrentStep(0);
         else if (!kycData[0].phone_verified) setCurrentStep(1);
-        else if (!kycData[0].bvn_verified) setCurrentStep(2);
+        else if (!kycData[0].bvn) setCurrentStep(2);
         else if (!kycData[0].nin_verified) setCurrentStep(3);
         else if (!kycData[0].residential_address || !kycData[0].property_type) setCurrentStep(4);
         else if (!kycData[0].account_number) setCurrentStep(5);
@@ -322,6 +322,26 @@ export default function KYC() {
       setError(null);
     } catch (err) {
       setError(err.message || 'BVN verification failed. Please check and try again.');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const skipBVN = async () => {
+    if (!formData.bvn || formData.bvn.length !== 11) {
+      setError('Please enter your 11-digit BVN before continuing');
+      return;
+    }
+    setSaving(true);
+    try {
+      await base44.entities.KYCProfile.update(kyc.id, {
+        bvn: formData.bvn,
+        bvn_verified: false
+      });
+      setCurrentStep(3);
+      setError(null);
+    } catch (err) {
+      setError('Failed to save BVN. Please try again.');
     } finally {
       setSaving(false);
     }
@@ -670,8 +690,19 @@ export default function KYC() {
                     disabled={saving}
                   >
                     {saving ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
-                    Continue <ArrowRight className="ml-2 w-4 h-4" />
+                    Verify BVN <ArrowRight className="ml-2 w-4 h-4" />
                   </Button>
+                  {error && (
+                    <Button
+                      variant="outline"
+                      className="w-full border-amber-300 text-amber-700 hover:bg-amber-50"
+                      onClick={skipBVN}
+                      disabled={saving}
+                    >
+                      {saving ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
+                      Continue Without BVN Verification
+                    </Button>
+                  )}
                 </CardContent>
               </Card>
             )}
