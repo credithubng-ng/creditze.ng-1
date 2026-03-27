@@ -123,19 +123,35 @@ Deno.serve(async (req) => {
             
             if (smsData.code !== 1000 && smsData.code !== '1000') {
                 console.error('SmartSMS error:', smsData);
-                
-                // Check for DND time restriction errors
-                const errorMsg = (smsData.comment || smsData.error || '').toLowerCase();
-                if (errorMsg.includes('dnd') || errorMsg.includes('time') || errorMsg.includes('do not disturb')) {
-                    return Response.json({ 
-                        success: false, 
-                        error: 'This number is on DND. You can continue without verification or try again later.'
-                    }, { status: 400 });
-                }
-                
                 return Response.json({ 
                     success: false, 
-                    error: smsData.comment || smsData.error || 'Failed to send SMS. You can continue without verification.'
+                    error: smsData.comment || smsData.error || 'Failed to send SMS.'
+                }, { status: 400 });
+            }
+
+            // Check if message was scheduled (MTN time restriction) - OTP will expire before delivery
+            if (smsData.schedule === true || smsData.scheduled) {
+                console.error('SMS scheduled for later, not immediate:', smsData.scheduled);
+                return Response.json({ 
+                    success: false, 
+                    error: 'SMS delivery is delayed due to carrier restrictions. Please try again between 8am–9pm, or use a non-MTN number.'
+                }, { status: 400 });
+            }
+
+            // Check if number is on DND (API returns 1000 but dnd_numbers is populated)
+            if (smsData.dnd_numbers && smsData.dnd_numbers.includes(formattedPhone)) {
+                console.error('Number is on DND:', formattedPhone);
+                return Response.json({ 
+                    success: false, 
+                    error: 'This number is registered on the DND list. SMS cannot be delivered. Please use a different number.'
+                }, { status: 400 });
+            }
+
+            // Check if number failed to send
+            if (smsData.failed && smsData.failed.includes(formattedPhone)) {
+                return Response.json({ 
+                    success: false, 
+                    error: 'Failed to deliver SMS to this number. Please check the number and try again.'
                 }, { status: 400 });
             }
 
