@@ -119,7 +119,7 @@ Deno.serve(async (req) => {
 
             const smsData = await smsResponse.json();
             
-            console.log('SmartSMS response:', smsData);
+            console.log('SmartSMS full response:', JSON.stringify(smsData));
             
             if (smsData.code !== 1000 && smsData.code !== '1000') {
                 console.error('SmartSMS error:', smsData);
