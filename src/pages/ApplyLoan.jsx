@@ -105,7 +105,8 @@ export default function ApplyLoan() {
   };
 
   const canApply = () => {
-    return kyc?.kyc_status === 'verified' && kyc?.phone_verified && isCreditSearchValid() && !creditLimit?.is_frozen;
+    // Allow users without phone verification to apply — phone OTP can be completed before disbursement
+    return kyc?.kyc_status === 'verified' && isCreditSearchValid() && !creditLimit?.is_frozen;
   };
 
   const calculateScore = () => {
@@ -310,20 +311,26 @@ export default function ApplyLoan() {
         status: 'pending'
       });
 
+      // Check phone verification status
+      const phoneVerified = kyc?.phone_verified === true;
+
       // Auto-approve urgent_10k if score meets criteria, manual review for tier1 or low scores
       const isUrgent10k = selectedProduct === 'urgent_10k';
       const meetsScoreCriteria = loanDetails.score >= loanDetails.minScore;
       const hasHighRiskFlags = mlScoreResult?.risk_flags_detected?.length > 2;
       const hasLowConfidence = mlScoreResult?.confidence_level === 'low';
 
-      const needsReview = !isUrgent10k || !meetsScoreCriteria || hasHighRiskFlags || hasLowConfidence;
+      // Unverified phone forces manual review so admin can decide to waive or require OTP first
+      const needsReview = !isUrgent10k || !meetsScoreCriteria || hasHighRiskFlags || hasLowConfidence || !phoneVerified;
 
       let reviewReason = '';
       let applicationStatus = 'approved';
 
       if (needsReview) {
         applicationStatus = 'pending';
-        if (!isUrgent10k) {
+        if (!phoneVerified) {
+          reviewReason = 'Phone number not verified — admin must waive or user must verify before disbursement';
+        } else if (!isUrgent10k) {
           reviewReason = 'Tier-1 loan requires manual review';
         } else if (!meetsScoreCriteria) {
           reviewReason = `Score ${loanDetails.score} below minimum ${loanDetails.minScore}`;
@@ -537,7 +544,6 @@ export default function ApplyLoan() {
             <AlertCircle className="h-4 w-4" />
             <AlertDescription>
               {kyc?.kyc_status !== 'verified' && 'Please complete KYC verification first.'}
-              {!kyc?.phone_verified && 'Please verify your phone number first.'}
               {!isCreditSearchValid() && 'Please complete a credit search first.'}
               {creditLimit?.is_frozen && 'Your account is frozen due to missed payments.'}
             </AlertDescription>

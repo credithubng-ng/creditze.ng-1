@@ -40,6 +40,7 @@ export default function SetupDirectDebit() {
   const [loading, setLoading] = useState(true);
   const [processing, setProcessing] = useState(false);
   const [agreed, setAgreed] = useState(false);
+  const [phoneWaived, setPhoneWaived] = useState(false);
 
   useEffect(() => {
     loadData();
@@ -130,15 +131,9 @@ export default function SetupDirectDebit() {
 
       setKyc(kycData[0]);
       
-      // Block if phone not verified
-      if (!kycData[0]?.phone_verified) {
-        toast.error('Please verify your phone number first');
-        navigate(createPageUrl('KYC'));
-        return;
-      }
-      
       if (loanData[0]) {
         setLoan(loanData[0]);
+        setPhoneWaived(loanData[0].phone_verification_waived === true);
         
         // Check for existing mandate
         const mandates = await base44.entities.DirectDebitMandate.filter({ 
@@ -337,6 +332,57 @@ export default function SetupDirectDebit() {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <Loader2 className="w-8 h-8 animate-spin text-emerald-600" />
+      </div>
+    );
+  }
+
+  // Block disbursement if phone not verified and not admin-waived
+  if (!loading && !kyc?.phone_verified && !phoneWaived) {
+    return (
+      <div className="min-h-screen bg-gray-50">
+        <div className="bg-white border-b px-4 py-4">
+          <div className="max-w-lg mx-auto flex items-center gap-4">
+            <Button variant="ghost" size="icon" onClick={() => navigate(createPageUrl('Dashboard'))}>
+              <ArrowLeft className="w-5 h-5" />
+            </Button>
+            <h1 className="font-semibold text-gray-900">Direct Debit Setup</h1>
+          </div>
+        </div>
+        <div className="max-w-lg mx-auto px-4 py-8 space-y-4">
+          <Card className="border-0 shadow-md border-l-4 border-l-amber-500">
+            <CardContent className="p-6">
+              <div className="flex items-start gap-4">
+                <div className="w-12 h-12 bg-amber-100 rounded-xl flex items-center justify-center flex-shrink-0">
+                  <AlertCircle className="w-6 h-6 text-amber-600" />
+                </div>
+                <div>
+                  <h3 className="font-semibold text-gray-900 mb-2">Phone Verification Required</h3>
+                  <p className="text-sm text-gray-600 mb-4">
+                    You need to verify your phone number before we can disburse your loan. This is a security requirement to protect your account.
+                  </p>
+                  <p className="text-sm text-gray-500 mb-4">
+                    If you're having trouble receiving the OTP, please contact support. An admin can waive this requirement if needed.
+                  </p>
+                  <div className="flex flex-col gap-2">
+                    <Button
+                      className="bg-amber-500 hover:bg-amber-600 w-full"
+                      onClick={() => navigate(createPageUrl('KYC'))}
+                    >
+                      Verify Phone Now
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      className="w-full text-gray-500"
+                      onClick={() => navigate(createPageUrl('Dashboard'))}
+                    >
+                      Back to Dashboard
+                    </Button>
+                  </div>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
       </div>
     );
   }

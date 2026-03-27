@@ -1,0 +1,154 @@
+{
+  "name": "LoanApplication",
+  "type": "object",
+  "properties": {
+    "user_id": {
+      "type": "string",
+      "description": "Reference to the user"
+    },
+    "loan_type": {
+      "type": "string",
+      "enum": [
+        "urgent_10k",
+        "tier1_personal"
+      ],
+      "description": "Type of loan product"
+    },
+    "amount_requested": {
+      "type": "number",
+      "description": "Loan amount in Naira"
+    },
+    "amount_approved": {
+      "type": "number",
+      "description": "Approved loan amount"
+    },
+    "interest_rate": {
+      "type": "number",
+      "description": "Interest rate percentage"
+    },
+    "tenure_days": {
+      "type": "number",
+      "description": "Loan tenure in days"
+    },
+    "total_repayment": {
+      "type": "number",
+      "description": "Total amount to repay"
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "pending",
+        "under_review",
+        "approved",
+        "disbursed",
+        "repaid",
+        "overdue",
+        "defaulted",
+        "rejected"
+      ],
+      "default": "pending"
+    },
+    "phone_verification_waived": {
+      "type": "boolean",
+      "default": false,
+      "description": "Admin has waived the phone verification requirement for this loan"
+    },
+    "phone_verification_waived_by": {
+      "type": "string",
+      "description": "Admin ID who waived the phone verification"
+    },
+    "phone_verification_waived_date": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "score": {
+      "type": "number",
+      "description": "Loan score out of 100"
+    },
+    "score_breakdown": {
+      "type": "object",
+      "description": "Detailed score components"
+    },
+    "manual_review_required": {
+      "type": "boolean",
+      "default": false,
+      "description": "Flagged by ML system for manual review"
+    },
+    "manual_review_reason": {
+      "type": "string",
+      "description": "Why manual review was triggered"
+    },
+    "reviewed_by": {
+      "type": "string",
+      "description": "Admin ID who reviewed"
+    },
+    "reviewed_date": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "admin_notes": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "admin_id": {
+            "type": "string"
+          },
+          "admin_name": {
+            "type": "string"
+          },
+          "note": {
+            "type": "string"
+          },
+          "timestamp": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "default": []
+    },
+    "original_score": {
+      "type": "number",
+      "description": "Original system-calculated score"
+    },
+    "manual_score_adjustment": {
+      "type": "number",
+      "description": "Admin adjustment to score (+/-)"
+    },
+    "manual_amount_adjustment": {
+      "type": "number",
+      "description": "Admin-adjusted loan amount"
+    },
+    "manual_interest_adjustment": {
+      "type": "number",
+      "description": "Admin-adjusted interest rate"
+    },
+    "rejection_reason": {
+      "type": "string"
+    },
+    "approval_reason": {
+      "type": "string"
+    },
+    "disbursement_date": {
+      "type": "string",
+      "format": "date"
+    },
+    "due_date": {
+      "type": "string",
+      "format": "date"
+    },
+    "repayment_date": {
+      "type": "string",
+      "format": "date"
+    },
+    "affiliate_code": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "user_id",
+    "loan_type",
+    "amount_requested"
+  ]
+}

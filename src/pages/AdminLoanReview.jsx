@@ -365,6 +365,31 @@ export default function AdminLoanReview() {
     }
   };
 
+  const waivePhoneVerification = async (app) => {
+    try {
+      const admin = await base44.auth.me();
+      await base44.entities.LoanApplication.update(app.id, {
+        phone_verification_waived: true,
+        phone_verification_waived_by: admin.id,
+        phone_verification_waived_date: new Date().toISOString(),
+        admin_notes: [
+          ...(app.admin_notes || []),
+          {
+            admin_id: admin.id,
+            admin_name: admin.full_name,
+            note: 'Phone verification waived by admin — user may proceed to disbursement without OTP.',
+            timestamp: new Date().toISOString()
+          }
+        ]
+      });
+      toast.success('Phone verification waived. User can now proceed to disbursement.');
+      await loadApplications();
+    } catch (error) {
+      console.error('Error waiving phone verification:', error);
+      toast.error('Failed to waive phone verification');
+    }
+  };
+
   const triggerManualDisbursement = async (app) => {
     if (app.status !== 'approved') {
       toast.error('Loan must be approved before disbursement');
@@ -549,11 +574,23 @@ export default function AdminLoanReview() {
                     )}
 
                     {/* KYC Status */}
-                    <div className="flex items-center gap-2 text-sm">
-                      <span className="text-gray-500">KYC Status:</span>
-                      <Badge className={kyc?.kyc_status === 'verified' ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-700'}>
-                        {kyc?.kyc_status || 'Unknown'}
-                      </Badge>
+                    <div className="flex flex-wrap items-center gap-3 text-sm">
+                      <div className="flex items-center gap-2">
+                        <span className="text-gray-500">KYC:</span>
+                        <Badge className={kyc?.kyc_status === 'verified' ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-700'}>
+                          {kyc?.kyc_status || 'Unknown'}
+                        </Badge>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <span className="text-gray-500">Phone:</span>
+                        {kyc?.phone_verified ? (
+                          <Badge className="bg-green-100 text-green-700">Verified</Badge>
+                        ) : app.phone_verification_waived ? (
+                          <Badge className="bg-blue-100 text-blue-700">Waived by Admin</Badge>
+                        ) : (
+                          <Badge className="bg-amber-100 text-amber-700">Unverified</Badge>
+                        )}
+                      </div>
                     </div>
 
                     <Separator />
@@ -577,6 +614,16 @@ export default function AdminLoanReview() {
                         <Edit3 className="w-4 h-4 mr-2" />
                         Review Application
                       </Button>
+                      {!kyc?.phone_verified && !app.phone_verification_waived && (
+                        <Button
+                          onClick={() => waivePhoneVerification(app)}
+                          variant="outline"
+                          className="flex-1 border-amber-400 text-amber-700 hover:bg-amber-50"
+                        >
+                          <CheckCircle2 className="w-4 h-4 mr-2" />
+                          Waive Phone OTP
+                        </Button>
+                      )}
                       {app.status === 'approved' && (
                         <Button
                           onClick={() => triggerManualDisbursement(app)}
