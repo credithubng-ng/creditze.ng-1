@@ -15,7 +15,8 @@ import {
   Loader2,
   AlertCircle,
   User as UserIcon,
-  Calendar
+  Calendar,
+  TrendingUp
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -29,6 +30,7 @@ import { STATES, getLGAsForState } from '@/components/utils/nigeriaStatesLgas';
 const STEPS = [
   { id: 'personal', title: 'Personal', icon: UserIcon },
   { id: 'phone', title: 'Phone', icon: Phone },
+  { id: 'credit', title: 'Credit Score', icon: TrendingUp },
   { id: 'bvn', title: 'BVN', icon: CreditCard },
   { id: 'nin', title: 'NIN', icon: CreditCard },
   { id: 'address', title: 'Address', icon: MapPin },
@@ -92,7 +94,7 @@ export default function KYC() {
         // Find the first incomplete step
         if (!kycData[0].full_name || !kycData[0].date_of_birth || !kycData[0].gender) setCurrentStep(0);
         else if (!kycData[0].phone_verified) setCurrentStep(1);
-        else if (!kycData[0].bvn) setCurrentStep(2);
+        else if (!kycData[0].bvn) setCurrentStep(2); // Credit search (BVN lookup)
         else if (!kycData[0].nin_verified) setCurrentStep(3);
         else if (!kycData[0].residential_address || !kycData[0].property_type) setCurrentStep(4);
         else if (!kycData[0].account_number) setCurrentStep(5);
@@ -232,7 +234,7 @@ export default function KYC() {
     try {
       const kycUpdate = {
         user_id: user.id,
-        phone_number: formData.phone_number,
+       phone_number: formData.phone_number,
         phone_verified: false
       };
 
@@ -242,7 +244,7 @@ export default function KYC() {
         const newKyc = await base44.entities.KYCProfile.create(kycUpdate);
         setKyc(newKyc);
       }
-      setCurrentStep(2);
+      setCurrentStep(2); // Move to credit search
       setError(null);
     } catch (err) {
       setError('Failed to save phone number. Please try again.');
@@ -289,14 +291,14 @@ export default function KYC() {
         const newKyc = await base44.entities.KYCProfile.create(kycUpdate);
         setKyc(newKyc);
       }
-      setCurrentStep(2);
+      setCurrentStep(2); // Move to credit search
       setError(null);
-    } catch (err) {
+      } catch (err) {
       setError(err.message || 'Verification failed. Please try again.');
-    } finally {
+      } finally {
       setSaving(false);
-    }
-  };
+      }
+      };
 
   const verifyBVN = async () => {
     if (!formData.bvn || formData.bvn.length !== 11) {
@@ -321,7 +323,7 @@ export default function KYC() {
         bvn_date_of_birth: response.data.data.date_of_birth,
         bvn_gender: response.data.data.gender
       });
-      setCurrentStep(3);
+      setCurrentStep(3); // Move to NIN
       setError(null);
     } catch (err) {
       setError(err.message || 'BVN verification failed. Please check and try again.');
@@ -341,7 +343,7 @@ export default function KYC() {
         bvn: formData.bvn,
         bvn_verified: false
       });
-      setCurrentStep(3);
+      setCurrentStep(3); // Move to NIN
       setError(null);
     } catch (err) {
       setError('Failed to save BVN. Please try again.');
@@ -369,7 +371,7 @@ export default function KYC() {
         nin: formData.nin,
         nin_verified: true
       });
-      setCurrentStep(4);
+      setCurrentStep(4); // Move to address
       setError(null);
     } catch (err) {
       setError(err.message || 'NIN verification failed. Please check and try again.');
@@ -389,7 +391,7 @@ export default function KYC() {
         nin: formData.nin,
         nin_verified: false
       });
-      setCurrentStep(4);
+      setCurrentStep(4); // Move to address
       setError(null);
     } catch (err) {
       setError('Failed to save NIN. Please try again.');
@@ -417,7 +419,8 @@ export default function KYC() {
           property_type: formData.property_type,
           property_years: parseInt(formData.property_years) || 0
         });
-        setCurrentStep(5);
+        setCurrentStep(5); // Move to bank
+        setError(null);
       } catch (err) {
         setError('Failed to save address. Please try again.');
       } finally {
@@ -685,8 +688,41 @@ export default function KYC() {
               </Card>
             )}
 
-            {/* BVN Verification */}
-            {currentStep === 2 && (
+            {/* Credit Search - Step 2 */}
+             {currentStep === 2 && (
+               <Card className="border-0 shadow-md">
+                 <CardHeader>
+                   <div className="w-14 h-14 bg-blue-100 rounded-2xl flex items-center justify-center mb-4">
+                     <TrendingUp className="w-7 h-7 text-blue-600" />
+                   </div>
+                   <CardTitle>Check Your Credit Score</CardTitle>
+                   <CardDescription>We value your credit before we proceed. This helps us assess your eligibility and offer better terms.</CardDescription>
+                 </CardHeader>
+                 <CardContent className="space-y-4">
+                   <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                     <p className="text-sm text-blue-900">
+                       A one-time payment of <strong>₦850</strong> gets you a credit search valid for 90 days. If your score is low, you can still build your credit with our credit builder loans.
+                     </p>
+                   </div>
+                   <Button 
+                     className="w-full bg-blue-600 hover:bg-blue-700"
+                     onClick={() => navigate(createPageUrl('CreditSearch'))}
+                   >
+                     Proceed to Credit Search <ArrowRight className="ml-2 w-4 h-4" />
+                   </Button>
+                   <Button 
+                     variant="outline"
+                     className="w-full"
+                     onClick={() => setCurrentStep(3)}
+                   >
+                     Skip for Now
+                   </Button>
+                 </CardContent>
+               </Card>
+             )}
+
+            {/* BVN Verification - Step 3 */}
+             {currentStep === 3 && (
               <Card className="border-0 shadow-md">
                 <CardHeader>
                   <div className="w-14 h-14 bg-emerald-100 rounded-2xl flex items-center justify-center mb-4">
@@ -728,8 +764,8 @@ export default function KYC() {
               </Card>
             )}
 
-            {/* NIN Verification */}
-            {currentStep === 3 && (
+            {/* NIN Verification - Step 4 */}
+             {currentStep === 4 && (
               <Card className="border-0 shadow-md">
                 <CardHeader>
                   <div className="w-14 h-14 bg-emerald-100 rounded-2xl flex items-center justify-center mb-4">
@@ -771,8 +807,8 @@ export default function KYC() {
               </Card>
             )}
 
-            {/* Address & Property */}
-            {currentStep === 4 && (
+            {/* Address & Property - Step 5 */}
+             {currentStep === 5 && (
               <Card className="border-0 shadow-md">
                 <CardHeader>
                   <div className="w-14 h-14 bg-emerald-100 rounded-2xl flex items-center justify-center mb-4">
@@ -876,8 +912,8 @@ export default function KYC() {
               </Card>
             )}
 
-            {/* Bank Details */}
-            {currentStep === 5 && (
+            {/* Bank Details - Step 6 */}
+             {currentStep === 6 && (
               <Card className="border-0 shadow-md">
                 <CardHeader>
                   <div className="w-14 h-14 bg-emerald-100 rounded-2xl flex items-center justify-center mb-4">
