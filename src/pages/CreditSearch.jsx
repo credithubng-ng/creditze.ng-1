@@ -12,7 +12,8 @@ import {
   AlertCircle,
   CreditCard,
   Clock,
-  Mail
+  Mail,
+  Download
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
@@ -201,32 +202,7 @@ export default function CreditSearch() {
       }
       const expiryDate = new Date(result.expiry_date || new Date());
 
-      // Send email with credit report
-      await base44.integrations.Core.SendEmail({
-        to: user.email,
-        subject: 'Your Credit Report from Creditze.ng',
-        body: `
-Dear ${user.full_name},
-
-Your credit search has been completed via CRC Credit Bureau.
-
-Result: ${result.search_status === 'successful' ? 'Successful' : 'Unsuccessful'}
-${result.search_status === 'successful' ? `Credit Score: ${result.bureau_score}` : `Reason: ${result.failure_reason}`}
-
-This report is valid for 90 days until ${expiryDate.toLocaleDateString()}.
-
-${result.search_status === 'successful' ? 'You can now proceed to apply for loans on Creditze.ng.' : 'Unfortunately, you are not eligible for loans at this time.'}
-
-Thank you for using Creditze.ng.
-
-Best regards,
-The Creditze.ng Team
-        `
-      });
-
-      // Mark as emailed
-      await base44.entities.CreditSearch.update(searchId, { report_emailed: true });
-
+      // Note: the backend (performCreditSearch function) already sends a formatted HTML email with download link.
       // Show result immediately
       setSearchResult(result);
       setProcessing(false);
@@ -347,8 +323,20 @@ The Creditze.ng Team
                     </div>
                   </div>
                 </div>
+                {existingSearch.report_url && (
+                  <a
+                    href={existingSearch.report_url}
+                    download
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex items-center justify-center gap-2 w-full mt-4 py-2 px-4 border border-emerald-600 text-emerald-600 rounded-md font-medium text-sm hover:bg-emerald-50 transition"
+                  >
+                    <Download className="w-4 h-4" />
+                    Download Credit Report
+                  </a>
+                )}
                 <Button 
-                  className="w-full mt-4 bg-emerald-600 hover:bg-emerald-700"
+                  className="w-full mt-3 bg-emerald-600 hover:bg-emerald-700"
                   onClick={() => navigate(createPageUrl('ApplyLoan'))}
                 >
                   Apply for Loan
@@ -385,6 +373,18 @@ The Creditze.ng Team
                       <Mail className="w-4 h-4" />
                       Report sent to {user.email}
                     </div>
+                    {searchResult.report_url && (
+                      <a
+                        href={searchResult.report_url}
+                        download
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="flex items-center justify-center gap-2 w-full mb-3 py-2 px-4 border border-emerald-600 text-emerald-600 rounded-md font-medium text-sm hover:bg-emerald-50 transition"
+                      >
+                        <Download className="w-4 h-4" />
+                        Download Credit Report
+                      </a>
+                    )}
                     <Button 
                       className="w-full bg-emerald-600 hover:bg-emerald-700"
                       onClick={() => navigate(createPageUrl('KYC'))}

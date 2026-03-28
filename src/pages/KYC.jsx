@@ -185,6 +185,9 @@ export default function KYC() {
         const newKyc = await base44.entities.KYCProfile.create(kycUpdate);
         setKyc(newKyc);
       }
+      // Update user's full_name so Dashboard greeting reflects immediately
+      await base44.auth.updateMe({ full_name: formData.full_name });
+      setUser(prev => ({ ...prev, full_name: formData.full_name }));
       setCurrentStep(1);
       setError(null);
     } catch (err) {
