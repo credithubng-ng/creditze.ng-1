@@ -34,15 +34,15 @@ Deno.serve(async (req) => {
     }
 
     // QoreID facial matching endpoint
-    const facialResponse = await fetch('https://api.qoreid.com/v1/kyc/bvn-face-match', {
+    const facialResponse = await fetch('https://api.qoreid.com/api/v1/kyc/bvn-face-match', {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${qoreIdKey}`,
         'Content-Type': 'application/json'
       },
       body: JSON.stringify({
-        bvn: kyc.bvn,
-        selfie_image_url: selfie_image_url
+        number: kyc.bvn,
+        image: selfie_image_url
       })
     });
 

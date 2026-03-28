@@ -45,13 +45,13 @@ Deno.serve(async (req) => {
       return Response.json({ success: false, error: 'QoreID not configured' }, { status: 500 });
     }
 
-    const qoreResponse = await fetch('https://api.qoreid.com/v1/kyc/bvn', {
+    const qoreResponse = await fetch('https://api.qoreid.com/api/v1/kyc/bvn', {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${qoreIdKey}`,
         'Content-Type': 'application/json'
       },
-      body: JSON.stringify({ bvn: bvn })
+      body: JSON.stringify({ number: bvn })
     });
 
     if (!qoreResponse.ok) {
