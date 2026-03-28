@@ -15,6 +15,24 @@ Deno.serve(async (req) => {
       return Response.json({ success: false, error: 'NIN must be 11 digits' }, { status: 400 });
     }
 
+    // Get KYC data to extract name
+    const kycData = await base44.entities.KYCProfile.filter({ user_id: user.id });
+    if (!kycData[0]) {
+      return Response.json({ success: false, error: 'KYC profile not found' }, { status: 400 });
+    }
+    const kyc = kycData[0];
+
+    // Parse full name into firstname and lastname
+    const fullName = kyc.full_name || user.full_name || '';
+    const nameParts = fullName.trim().split(' ');
+    const firstname = nameParts[0] || '';
+    const lastname = nameParts[nameParts.length - 1] || '';
+    const middlename = nameParts.length > 2 ? nameParts.slice(1, -1).join(' ') : '';
+
+    if (!firstname || !lastname) {
+      return Response.json({ success: false, error: 'Full name required in profile' }, { status: 400 });
+    }
+
     const clientId = Deno.env.get('QOREID_CLIENT_ID');
     const clientSecret = Deno.env.get('QOREID_SECRET');
     if (!clientId || !clientSecret) {
@@ -44,7 +62,15 @@ Deno.serve(async (req) => {
       headers: {
         'Authorization': `Bearer ${tokenData.accessToken}`,
         'Content-Type': 'application/json'
-      }
+      },
+      body: JSON.stringify({
+        firstname: firstname,
+        lastname: lastname,
+        middlename: middlename || undefined,
+        dob: kyc.date_of_birth || undefined,
+        phone: kyc.phone_number || undefined,
+        gender: kyc.gender || undefined
+      })
     });
 
     const qoreIdData = await response.json();
