@@ -41,7 +41,8 @@ Deno.serve(async (req) => {
                         }
                     ]
                 },
-                callback_url: callback_url || undefined
+                callback_url: callback_url || undefined,
+                skip_payment: false
             })
         });
 
