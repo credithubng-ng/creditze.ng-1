@@ -15,26 +15,42 @@ Deno.serve(async (req) => {
       return Response.json({ success: false, error: 'NIN must be 11 digits' }, { status: 400 });
     }
 
-    const qoreIdKey = Deno.env.get('QOREID_API_KEY');
-    if (!qoreIdKey) {
+    const clientId = Deno.env.get('QOREID_CLIENT_ID');
+    const clientSecret = Deno.env.get('QOREID_SECRET');
+    if (!clientId || !clientSecret) {
       return Response.json({ success: false, error: 'QoreID not configured' }, { status: 500 });
     }
 
-    // Call QoreID NIN verification
-    const response = await fetch('https://api.qoreid.com/api/v1/verification/nin', {
+    // Get access token
+    const tokenResponse = await fetch('https://api.qoreid.com/token', {
       method: 'POST',
       headers: {
-        'Authorization': `Bearer ${qoreIdKey}`,
-        'Content-Type': 'application/json'
+        'Content-Type': 'application/x-www-form-urlencoded'
       },
-      body: JSON.stringify({
-        nin: nin
-      })
+      body: new URLSearchParams({
+        grant_type: 'client_credentials',
+        client_id: clientId,
+        client_secret: clientSecret
+      }).toString()
+    });
+
+    const tokenData = await tokenResponse.json();
+    if (!tokenData.access_token) {
+      throw new Error('Failed to get access token');
+    }
+
+    // Call QoreID NIN verification
+    const response = await fetch(`https://api.qoreid.com/v1/ng/identities/nin/${nin}`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${tokenData.access_token}`,
+        'Content-Type': 'application/json'
+      }
     });
 
     const qoreIdData = await response.json();
 
-    if (!qoreIdData.success) {
+    if (!response.ok || qoreIdData.status !== 'success') {
       return Response.json({
         success: false,
         error: qoreIdData.message || 'NIN verification failed'

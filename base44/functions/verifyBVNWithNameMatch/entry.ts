@@ -39,24 +39,42 @@ Deno.serve(async (req) => {
     }
     const kyc = kycData[0];
 
-    // Verify BVN via QoreID
-    const qoreIdKey = Deno.env.get('QOREID_API_KEY');
-    if (!qoreIdKey) {
+    // Get QoreID access token
+    const clientId = Deno.env.get('QOREID_CLIENT_ID');
+    const clientSecret = Deno.env.get('QOREID_SECRET');
+    if (!clientId || !clientSecret) {
       return Response.json({ success: false, error: 'QoreID not configured' }, { status: 500 });
     }
 
-    const qoreIdResponse = await fetch('https://api.qoreid.com/api/v1/verification/verify_bvn', {
+    const tokenResponse = await fetch('https://api.qoreid.com/token', {
       method: 'POST',
       headers: {
-        'Authorization': `Bearer ${qoreIdKey}`,
-        'Content-Type': 'application/json'
+        'Content-Type': 'application/x-www-form-urlencoded'
       },
-      body: JSON.stringify({ bvn: bvn })
+      body: new URLSearchParams({
+        grant_type: 'client_credentials',
+        client_id: clientId,
+        client_secret: clientSecret
+      }).toString()
+    });
+
+    const tokenData = await tokenResponse.json();
+    if (!tokenData.access_token) {
+      throw new Error('Failed to get access token');
+    }
+
+    // Call QoreID BVN verification (premium endpoint for full data)
+    const qoreIdResponse = await fetch(`https://api.qoreid.com/v1/ng/identities/bvn-premium/${bvn}`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${tokenData.access_token}`,
+        'Content-Type': 'application/json'
+      }
     });
 
     const qoreIdData = await qoreIdResponse.json();
 
-    if (!qoreIdData.success) {
+    if (!qoreIdResponse.ok || qoreIdData.status !== 'success') {
       return Response.json({ 
         success: false, 
         error: qoreIdData.message || 'BVN verification failed with provider'

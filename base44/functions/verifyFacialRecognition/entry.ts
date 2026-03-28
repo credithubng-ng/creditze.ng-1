@@ -27,28 +27,46 @@ Deno.serve(async (req) => {
       return Response.json({ success: false, error: 'BVN must be verified first' }, { status: 400 });
     }
 
-    // Call QoreID for facial recognition matching against BVN
-    const qoreIdKey = Deno.env.get('QOREID_API_KEY');
-    if (!qoreIdKey) {
+    // Get QoreID access token
+    const clientId = Deno.env.get('QOREID_CLIENT_ID');
+    const clientSecret = Deno.env.get('QOREID_SECRET');
+    if (!clientId || !clientSecret) {
       return Response.json({ success: false, error: 'QoreID not configured' }, { status: 500 });
     }
 
-    // QoreID facial matching endpoint
-    const facialResponse = await fetch('https://api.qoreid.com/api/v1/verification/verify_bvn_with_face', {
+    const tokenResponse = await fetch('https://api.qoreid.com/token', {
       method: 'POST',
       headers: {
-        'Authorization': `Bearer ${qoreIdKey}`,
+        'Content-Type': 'application/x-www-form-urlencoded'
+      },
+      body: new URLSearchParams({
+        grant_type: 'client_credentials',
+        client_id: clientId,
+        client_secret: clientSecret
+      }).toString()
+    });
+
+    const tokenData = await tokenResponse.json();
+    if (!tokenData.access_token) {
+      throw new Error('Failed to get access token');
+    }
+
+    // QoreID facial matching endpoint
+    const facialResponse = await fetch(`https://api.qoreid.com/v1/ng/identities/face-verification/nin`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${tokenData.access_token}`,
         'Content-Type': 'application/json'
       },
       body: JSON.stringify({
-        bvn: kyc.bvn,
+        nin: kyc.nin,
         selfie_image_url: selfie_image_url
       })
     });
 
     const facialData = await facialResponse.json();
 
-    if (!facialData.success) {
+    if (!facialResponse.ok || facialData.status !== 'success') {
       return Response.json({
         success: false,
         error: facialData.message || 'Facial recognition failed. Please ensure good lighting and clear visibility of your face.',
