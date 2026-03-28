@@ -49,17 +49,16 @@ Deno.serve(async (req) => {
     const tokenResponse = await fetch('https://api.qoreid.com/token', {
       method: 'POST',
       headers: {
-        'Content-Type': 'application/x-www-form-urlencoded'
+        'Content-Type': 'application/json'
       },
-      body: new URLSearchParams({
-        grant_type: 'client_credentials',
-        client_id: clientId,
-        client_secret: clientSecret
-      }).toString()
+      body: JSON.stringify({
+        clientId: clientId,
+        secret: clientSecret
+      })
     });
 
     const tokenData = await tokenResponse.json();
-    if (!tokenData.access_token) {
+    if (!tokenData.accessToken) {
       throw new Error('Failed to get access token');
     }
 
@@ -67,7 +66,7 @@ Deno.serve(async (req) => {
     const qoreIdResponse = await fetch(`https://api.qoreid.com/v1/ng/identities/bvn-premium/${bvn}`, {
       method: 'POST',
       headers: {
-        'Authorization': `Bearer ${tokenData.access_token}`,
+        'Authorization': `Bearer ${tokenData.accessToken}`,
         'Content-Type': 'application/json'
       }
     });
