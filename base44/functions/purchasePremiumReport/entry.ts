@@ -247,6 +247,124 @@ async function generatePremiumPDF({ userName, score, searchId, crcData, aiAdvice
         y += 4;
     }
 
+    // Inquiry History
+    const inquiries = body?.INQUIRYLIST || body?.ENQUIRYLIST || [];
+    const inquiryArr = Array.isArray(inquiries) ? inquiries : (inquiries ? [inquiries] : []);
+    const validInquiries = inquiryArr.filter(i => i?.INQUIRY || i?.ENQUIRY);
+    if (validInquiries.length > 0) {
+        if (y > 230) { doc.addPage(); y = 20; }
+        y += 4;
+        doc.setTextColor(31, 41, 55);
+        doc.setFontSize(10);
+        doc.setFont('helvetica', 'bold');
+        doc.text('Credit Inquiry History (Who Checked Your Credit)', 15, y);
+        y += 6;
+
+        doc.setFillColor(31, 41, 55);
+        doc.rect(15, y, W - 30, 8, 'F');
+        doc.setTextColor(255, 255, 255);
+        doc.setFontSize(7.5);
+        doc.text('Institution', 19, y + 5.5);
+        doc.text('Inquiry Type', 90, y + 5.5);
+        doc.text('Date', 150, y + 5.5);
+        doc.text('Amount (₦)', 175, y + 5.5);
+        y += 8;
+
+        let inqAlt = false;
+        for (const item of validInquiries.slice(0, 15)) {
+            const inq = item.INQUIRY || item.ENQUIRY || {};
+            if (y > 270) { doc.addPage(); y = 20; }
+            if (inqAlt) { doc.setFillColor(248, 250, 252); doc.rect(15, y, W - 30, 7, 'F'); }
+            doc.setTextColor(55, 65, 81);
+            doc.setFont('helvetica', 'normal');
+            doc.setFontSize(7.5);
+            doc.text((inq['@INSTITUTION'] || inq['@SUBSCRIBER-NAME'] || 'N/A').substring(0, 30), 19, y + 5);
+            doc.text((inq['@INQUIRY-TYPE'] || inq['@REASON'] || 'N/A').substring(0, 18), 90, y + 5);
+            doc.text((inq['@DATE'] || inq['@INQUIRY-DATE'] || 'N/A'), 150, y + 5);
+            const amt = inq['@AMOUNT'] ? Number(String(inq['@AMOUNT']).replace(/,/g, '')).toLocaleString('en-NG') : 'N/A';
+            doc.text(amt, 175, y + 5);
+            y += 7;
+            inqAlt = !inqAlt;
+        }
+        y += 4;
+    }
+
+    // Address History
+    const addresses = body?.ADDRESSLIST || body?.ADDRESS_HISTORY || [];
+    const addressArr = Array.isArray(addresses) ? addresses : (addresses ? [addresses] : []);
+    const validAddresses = addressArr.filter(a => a?.ADDRESS || a?.ADDRESSDETAIL);
+    if (validAddresses.length > 0) {
+        if (y > 240) { doc.addPage(); y = 20; }
+        y += 4;
+        doc.setTextColor(31, 41, 55);
+        doc.setFontSize(10);
+        doc.setFont('helvetica', 'bold');
+        doc.text('Address History', 15, y);
+        y += 6;
+
+        let addrAlt = false;
+        for (const item of validAddresses.slice(0, 5)) {
+            const addr = item.ADDRESS || item.ADDRESSDETAIL || {};
+            if (y > 270) { doc.addPage(); y = 20; }
+            if (addrAlt) { doc.setFillColor(248, 250, 252); doc.rect(15, y, W - 30, 10, 'F'); }
+            doc.setTextColor(107, 114, 128);
+            doc.setFontSize(8);
+            doc.setFont('helvetica', 'normal');
+            const addrLine = [addr['@ADDRESS-LINE1'] || addr['@STREET'], addr['@CITY'] || addr['@TOWN'], addr['@STATE']].filter(Boolean).join(', ') || 'N/A';
+            doc.text('• ' + addrLine, 19, y + 5, { maxWidth: W - 38 });
+            if (addr['@DATE-REPORTED'] || addr['@DATE']) {
+                doc.setTextColor(156, 163, 175);
+                doc.setFontSize(7);
+                doc.text('Reported: ' + (addr['@DATE-REPORTED'] || addr['@DATE']), 19, y + 9);
+            }
+            y += 12;
+            addrAlt = !addrAlt;
+        }
+        y += 4;
+    }
+
+    // Employment History
+    const employments = body?.EMPLOYMENTLIST || body?.EMPLOYMENT_HISTORY || [];
+    const employmentArr = Array.isArray(employments) ? employments : (employments ? [employments] : []);
+    const validEmployments = employmentArr.filter(e => e?.EMPLOYMENT || e?.EMPLOYMENTDETAIL);
+    if (validEmployments.length > 0) {
+        if (y > 240) { doc.addPage(); y = 20; }
+        y += 4;
+        doc.setTextColor(31, 41, 55);
+        doc.setFontSize(10);
+        doc.setFont('helvetica', 'bold');
+        doc.text('Employment History', 15, y);
+        y += 6;
+
+        doc.setFillColor(31, 41, 55);
+        doc.rect(15, y, W - 30, 8, 'F');
+        doc.setTextColor(255, 255, 255);
+        doc.setFontSize(7.5);
+        doc.text('Employer', 19, y + 5.5);
+        doc.text('Occupation', 90, y + 5.5);
+        doc.text('Income (₦)', 140, y + 5.5);
+        doc.text('Date', 175, y + 5.5);
+        y += 8;
+
+        let empAlt = false;
+        for (const item of validEmployments.slice(0, 5)) {
+            const emp = item.EMPLOYMENT || item.EMPLOYMENTDETAIL || {};
+            if (y > 270) { doc.addPage(); y = 20; }
+            if (empAlt) { doc.setFillColor(248, 250, 252); doc.rect(15, y, W - 30, 7, 'F'); }
+            doc.setTextColor(55, 65, 81);
+            doc.setFont('helvetica', 'normal');
+            doc.setFontSize(7.5);
+            doc.text((emp['@EMPLOYER-NAME'] || emp['@EMPLOYER'] || 'N/A').substring(0, 30), 19, y + 5);
+            doc.text((emp['@OCCUPATION'] || emp['@JOB-TITLE'] || 'N/A').substring(0, 18), 90, y + 5);
+            const income = emp['@INCOME'] || emp['@MONTHLY-INCOME'] ? Number(String(emp['@INCOME'] || emp['@MONTHLY-INCOME']).replace(/,/g, '')).toLocaleString('en-NG') : 'N/A';
+            doc.text(income, 140, y + 5);
+            doc.text((emp['@DATE-REPORTED'] || emp['@START-DATE'] || 'N/A'), 175, y + 5);
+            y += 7;
+            empAlt = !empAlt;
+        }
+        y += 4;
+    }
+
     // AI Credit Improvement Advice
     if (aiAdvice) {
         if (y > 210) { doc.addPage(); y = 20; }
