@@ -275,7 +275,8 @@ Deno.serve(async (req) => {
                 isTestMode
             });
 
-            const pdfFile = new File([pdfBytes], `credit_report_${searchId}.pdf`, { type: 'application/pdf' });
+            const safeName = (userRecord[0].full_name || 'Customer').replace(/\s+/g, '_').replace(/[^a-zA-Z0-9_]/g, '');
+            const pdfFile = new File([pdfBytes], `Credit_Search_Report_${safeName}.pdf`, { type: 'application/pdf' });
             const { file_url } = await base44.integrations.Core.UploadFile({ file: pdfFile });
 
             await base44.asServiceRole.entities.CreditSearch.update(searchId, {
