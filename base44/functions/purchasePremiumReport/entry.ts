@@ -563,9 +563,22 @@ Deno.serve(async (req) => {
                 const acc = a.ACCOUNT || {};
                 const balance = parseFloat(String(acc['@BALANCE'] || '0').replace(/,/g, '')) || 0;
                 const overdue = parseFloat(String(acc['@OVERDUE-AMOUNT'] || '0').replace(/,/g, '')) || 0;
+                const sanctioned = parseFloat(String(acc['@SANCTIONED-AMOUNT'] || acc['@CREDIT-LIMIT'] || '0').replace(/,/g, '')) || 0;
                 const status = acc['@STATUS'] || 'Unknown';
-                return `  - ${acc['@INSTITUTION'] || 'Unknown'} | Type: ${acc['@ACCOUNT-TYPE'] || 'N/A'} | Balance: ₦${balance.toLocaleString()} | Overdue: ₦${overdue.toLocaleString()} | Status: ${status} | Opened: ${acc['@DATE-OPENED'] || 'N/A'} | Last Activity: ${acc['@LAST-UPDATED'] || 'N/A'}`;
+                const isClosed = status.toLowerCase().includes('close') || status.toLowerCase().includes('settled') || status.toLowerCase().includes('paid');
+                const staleSanctioned = isClosed && sanctioned > 0 && balance === 0;
+                return `  - ${acc['@INSTITUTION'] || 'Unknown'} | Type: ${acc['@ACCOUNT-TYPE'] || 'N/A'} | Balance: ₦${balance.toLocaleString()} | Overdue: ₦${overdue.toLocaleString()} | Sanctioned Limit: ₦${sanctioned.toLocaleString()} | Status: ${status} | Opened: ${acc['@DATE-OPENED'] || 'N/A'} | Last Activity: ${acc['@LAST-UPDATED'] || 'N/A'}${staleSanctioned ? ' ⚠ STALE: Paid off but sanctioned limit still showing — needs closure update' : ''}`;
             }).join('\n');
+
+            // Identify stale accounts specifically
+            const staleAccounts = accountArr.filter(a => {
+                const acc = a.ACCOUNT || {};
+                const balance = parseFloat(String(acc['@BALANCE'] || '0').replace(/,/g, '')) || 0;
+                const sanctioned = parseFloat(String(acc['@SANCTIONED-AMOUNT'] || acc['@CREDIT-LIMIT'] || '0').replace(/,/g, '')) || 0;
+                const status = (acc['@STATUS'] || '').toLowerCase();
+                const isClosed = status.includes('close') || status.includes('settled') || status.includes('paid');
+                return isClosed && sanctioned > 0 && balance === 0;
+            }).map(a => `${a.ACCOUNT?.['@INSTITUTION']} (${a.ACCOUNT?.['@ACCOUNT-TYPE']}, Sanctioned: ₦${Number(String(a.ACCOUNT?.['@SANCTIONED-AMOUNT'] || a.ACCOUNT?.['@CREDIT-LIMIT'] || '0').replace(/,/g, '')).toLocaleString()})`);
 
             // Total balances and overdue amounts
             const totalBalance = accountArr.reduce((sum, a) => sum + (parseFloat(String(a.ACCOUNT?.['@BALANCE'] || '0').replace(/,/g, '')) || 0), 0);
@@ -598,12 +611,16 @@ ${accountDetails || '  No account data available'}
 
 Institution Classification:
 ${classificationSummary || '  No classification data'}
+
+Accounts with STALE SANCTIONED LIMITS (paid off but not formally closed at the bureau — this drags the score down):
+${staleAccounts.length > 0 ? staleAccounts.map(s => '  ⚠ ' + s).join('\n') : '  None detected'}
 --- END OF DATA ---
 
 Write 5-6 paragraphs of personalised, practical credit improvement advice directly addressing what is shown in this report. 
-- If total overdue is ₦0, acknowledge this positively and explain the delinquency reason codes may be historical.
-- Comment on the mix of account types (banks, micro-lenders etc.) and what it means.
-- Address the specific reason codes and what the person can actually do about each one.
+- If total overdue is ₦0, acknowledge this positively and clarify that delinquency reason codes may refer to historical events.
+- If there are stale sanctioned limits (paid-off accounts still showing a limit), explicitly call them out by institution name and advise the user to visit or write to those banks/lenders to request a formal account closure update at the credit bureau. Explain that until this is done, the bureau still counts those limits against them, which suppresses their score unnecessarily.
+- Comment on the mix of account types and what it means for their credit profile.
+- Address the specific reason codes and what the person can concretely do about each one.
 - Use plain paragraphs only (no bullet points, no markdown, no headers).
 - Write in a warm, encouraging but professional tone suitable for a Nigerian audience.
 - Start with: "Based on your credit report, here is what your data shows and how you can improve your score:"`,
