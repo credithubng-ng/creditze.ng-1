@@ -15,7 +15,9 @@ import {
   Shield,
   Building2,
   ChevronRight,
-  CreditCard
+  CreditCard,
+  Download,
+  Crown
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -30,6 +32,7 @@ export default function Dashboard() {
   const [creditLimit, setCreditLimit] = useState(null);
   const [loans, setLoans] = useState([]);
   const [approvedLoansWithoutMandate, setApprovedLoansWithoutMandate] = useState([]);
+  const [premiumReports, setPremiumReports] = useState([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -41,17 +44,19 @@ export default function Dashboard() {
       const currentUser = await base44.auth.me();
       setUser(currentUser);
 
-      const [kycData, creditData, limitData, loanData] = await Promise.all([
+      const [kycData, creditData, limitData, loanData, premiumData] = await Promise.all([
         base44.entities.KYCProfile.filter({ user_id: currentUser.id }),
         base44.entities.CreditSearch.filter({ user_id: currentUser.id }, '-created_date', 1),
         base44.entities.UserCreditLimit.filter({ user_id: currentUser.id }),
-        base44.entities.LoanApplication.filter({ user_id: currentUser.id }, '-created_date', 5)
+        base44.entities.LoanApplication.filter({ user_id: currentUser.id }, '-created_date', 5),
+        base44.entities.CreditSearch.filter({ user_id: currentUser.id, payment_status: 'paid', report_url: { $exists: true } }, '-created_date')
       ]);
 
       setKyc(kycData[0] || null);
       setCreditSearch(creditData[0] || null);
       setCreditLimit(limitData[0] || null);
       setLoans(loanData);
+      setPremiumReports(premiumData.filter(r => r.report_url));
 
       // Check for approved loans without mandates
       const approvedLoans = loanData.filter(loan => loan.status === 'approved');
@@ -308,30 +313,77 @@ export default function Dashboard() {
           </motion.div>
         )}
 
-        {/* Credit Search */}
-        {kyc?.bvn && !isCreditSearchValid() && (
+        {/* Credit Search Menu */}
+        {kyc?.bvn && (
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.2 }}
           >
-            <Card className="border-0 shadow-md border-l-4 border-l-amber-500">
+            <Card className={`border-0 shadow-md ${!isCreditSearchValid() ? 'border-l-4 border-l-amber-500' : ''}`}>
               <CardContent className="p-4">
-                <div className="flex items-start gap-4">
-                  <div className="w-12 h-12 bg-amber-100 rounded-xl flex items-center justify-center flex-shrink-0">
-                    <FileText className="w-6 h-6 text-amber-600" />
+                <div className="space-y-3">
+                  {/* Standard Credit Search */}
+                  <div className="flex items-start gap-4">
+                    <div className={`w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0 ${isCreditSearchValid() ? 'bg-emerald-100' : 'bg-amber-100'}`}>
+                      <FileText className={`w-6 h-6 ${isCreditSearchValid() ? 'text-emerald-600' : 'text-amber-600'}`} />
+                    </div>
+                    <div className="flex-1">
+                      <h3 className="font-semibold text-gray-900 mb-1">
+                        {isCreditSearchValid() ? 'Credit Search Active' : 'Credit Search'}
+                      </h3>
+                      <p className="text-sm text-gray-500 mb-3">
+                        {isCreditSearchValid()
+                          ? `Valid until ${new Date(creditSearch.expiry_date).toLocaleDateString()}`
+                          : 'Complete a credit search to unlock loan applications. Valid for 90 days.'}
+                      </p>
+                      {!isCreditSearchValid() && (
+                        <Button asChild size="sm" className="bg-amber-500 hover:bg-amber-600">
+                          <Link to={createPageUrl('CreditSearch')}>
+                            Pay ₦850 & Search <ArrowRight className="ml-2 w-4 h-4" />
+                          </Link>
+                        </Button>
+                      )}
+                    </div>
                   </div>
-                  <div className="flex-1">
-                    <h3 className="font-semibold text-gray-900 mb-1">Credit Search Required</h3>
-                    <p className="text-sm text-gray-500 mb-3">
-                      Complete a credit search to unlock loan applications. Valid for 90 days.
-                    </p>
-                    <Button asChild className="bg-amber-500 hover:bg-amber-600">
-                      <Link to={createPageUrl('CreditSearch')}>
-                        Pay ₦850 & Search <ArrowRight className="ml-2 w-4 h-4" />
-                      </Link>
-                    </Button>
-                  </div>
+
+                  {/* Premium Reports */}
+                  {premiumReports.length > 0 && (
+                    <div className="pt-3 border-t border-gray-200">
+                      <div className="flex items-start gap-4">
+                        <div className="w-12 h-12 bg-purple-100 rounded-xl flex items-center justify-center flex-shrink-0">
+                          <Crown className="w-6 h-6 text-purple-600" />
+                        </div>
+                        <div className="flex-1">
+                          <h3 className="font-semibold text-gray-900 mb-1">Premium Reports</h3>
+                          <p className="text-sm text-gray-500 mb-3">Download your detailed premium analysis</p>
+                          <div className="space-y-2">
+                            {premiumReports.slice(0, 3).map((report) => (
+                              <Link
+                                key={report.id}
+                                to={report.report_url}
+                                target="_blank"
+                                className="flex items-center justify-between p-2 bg-purple-50 hover:bg-purple-100 rounded-lg transition"
+                              >
+                                <span className="text-sm font-medium text-purple-900">
+                                  Premium Report • {new Date(report.created_date).toLocaleDateString()}
+                                </span>
+                                <Download className="w-4 h-4 text-purple-600" />
+                              </Link>
+                            ))}
+                            {premiumReports.length > 3 && (
+                              <Link
+                                to={createPageUrl('CreditSearchHistory')}
+                                className="text-sm text-purple-600 hover:text-purple-700 font-medium"
+                              >
+                                View all reports →
+                              </Link>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  )}
                 </div>
               </CardContent>
             </Card>
