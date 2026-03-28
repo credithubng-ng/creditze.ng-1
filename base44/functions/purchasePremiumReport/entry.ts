@@ -304,15 +304,24 @@ Deno.serve(async (req) => {
             return Response.json({ success: false, error: 'Payment reference and search_id are required' }, { status: 400 });
         }
 
-        // 1. Verify payment
-        const verifyResponse = await base44.functions.invoke('paystackVerifyPayment', { reference });
-        if (!verifyResponse.data.success || verifyResponse.data.status !== 'success') {
-            return Response.json({ success: false, error: 'Payment verification failed' }, { status: 400 });
+        // 1. Verify payment directly with Paystack
+        const PAYSTACK_SECRET_KEY = Deno.env.get('PAYSTACK_SECRET_KEY');
+        if (!PAYSTACK_SECRET_KEY) {
+            return Response.json({ success: false, error: 'Paystack not configured' }, { status: 500 });
         }
 
-        // paystackVerifyPayment returns amount in Naira (already converted from kobo)
-        const paymentAmount = verifyResponse.data?.amount;
-        if (paymentAmount !== undefined && paymentAmount < 2500) {
+        const paystackRes = await fetch(`https://api.paystack.co/transaction/verify/${reference}`, {
+            headers: { 'Authorization': `Bearer ${PAYSTACK_SECRET_KEY}` }
+        });
+        const paystackData = await paystackRes.json();
+
+        if (!paystackData.status || paystackData.data?.status !== 'success') {
+            return Response.json({ success: false, error: 'Payment not successful' }, { status: 400 });
+        }
+
+        // Amount is in kobo — ₦2,500 = 250,000 kobo
+        const amountPaid = paystackData.data?.amount || 0;
+        if (amountPaid < 250000) {
             return Response.json({ success: false, error: 'Insufficient payment amount' }, { status: 400 });
         }
 
