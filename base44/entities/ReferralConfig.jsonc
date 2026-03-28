@@ -1,0 +1,47 @@
+{
+  "name": "ReferralConfig",
+  "type": "object",
+  "properties": {
+    "config_key": {
+      "type": "string",
+      "default": "default"
+    },
+    "referrer_cash_reward": {
+      "type": "number",
+      "default": 1000,
+      "description": "Cash reward for referrer when referred user takes first loan"
+    },
+    "referred_interest_discount": {
+      "type": "number",
+      "default": 2,
+      "description": "Interest rate discount percentage for referred user"
+    },
+    "referred_cash_bonus": {
+      "type": "number",
+      "default": 0,
+      "description": "Optional cash bonus for referred user"
+    },
+    "min_loan_amount_for_conversion": {
+      "type": "number",
+      "default": 5000,
+      "description": "Minimum loan amount to count as conversion"
+    },
+    "enable_referral_program": {
+      "type": "boolean",
+      "default": true
+    },
+    "reward_expiry_days": {
+      "type": "number",
+      "default": 90,
+      "description": "Days until referral rewards expire"
+    },
+    "max_referrals_per_user": {
+      "type": "number",
+      "default": 50,
+      "description": "Maximum referrals a user can make"
+    }
+  },
+  "required": [
+    "config_key"
+  ]
+}

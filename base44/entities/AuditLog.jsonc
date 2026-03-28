@@ -1,0 +1,34 @@
+{
+  "name": "AuditLog",
+  "type": "object",
+  "properties": {
+    "action": {
+      "type": "string",
+      "description": "Action performed"
+    },
+    "entity_type": {
+      "type": "string"
+    },
+    "entity_id": {
+      "type": "string"
+    },
+    "user_id": {
+      "type": "string"
+    },
+    "admin_id": {
+      "type": "string"
+    },
+    "details": {
+      "type": "object"
+    },
+    "ip_address": {
+      "type": "string"
+    },
+    "user_agent": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "action"
+  ]
+}

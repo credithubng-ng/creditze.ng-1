@@ -1,0 +1,149 @@
+{
+  "name": "KYCProfile",
+  "type": "object",
+  "properties": {
+    "user_id": {
+      "type": "string",
+      "description": "Reference to the user"
+    },
+    "full_name": {
+      "type": "string",
+      "description": "Full name of the user"
+    },
+    "phone_number": {
+      "type": "string"
+    },
+    "phone_verified": {
+      "type": "boolean",
+      "default": false
+    },
+    "date_of_birth": {
+      "type": "string",
+      "format": "date",
+      "description": "Date of birth"
+    },
+    "gender": {
+      "type": "string",
+      "enum": [
+        "male",
+        "female"
+      ],
+      "description": "Gender"
+    },
+    "bvn": {
+      "type": "string",
+      "description": "Bank Verification Number"
+    },
+    "bvn_verified": {
+      "type": "boolean",
+      "default": false
+    },
+    "bvn_full_name": {
+      "type": "string",
+      "description": "Full name from BVN"
+    },
+    "bvn_phone_number": {
+      "type": "string",
+      "description": "Phone number from BVN"
+    },
+    "bvn_date_of_birth": {
+      "type": "string",
+      "description": "Date of birth from BVN"
+    },
+    "bvn_gender": {
+      "type": "string",
+      "enum": [
+        "male",
+        "female"
+      ],
+      "description": "Gender from BVN"
+    },
+    "nin": {
+      "type": "string",
+      "description": "National Identification Number"
+    },
+    "nin_verified": {
+      "type": "boolean",
+      "default": false
+    },
+    "residential_address": {
+      "type": "string"
+    },
+    "city": {
+      "type": "string",
+      "description": "City or town"
+    },
+    "residential_state": {
+      "type": "string"
+    },
+    "residential_lga": {
+      "type": "string"
+    },
+    "property_address": {
+      "type": "string",
+      "description": "Property address for risk anchor"
+    },
+    "property_type": {
+      "type": "string",
+      "enum": [
+        "owned",
+        "rented",
+        "family"
+      ]
+    },
+    "property_years": {
+      "type": "number",
+      "description": "Years at property"
+    },
+    "bank_name": {
+      "type": "string"
+    },
+    "account_number": {
+      "type": "string"
+    },
+    "account_name": {
+      "type": "string"
+    },
+    "kyc_status": {
+      "type": "string",
+      "enum": [
+        "incomplete",
+        "pending_verification",
+        "verified",
+        "failed"
+      ],
+      "default": "incomplete"
+    },
+    "kyc_completed_date": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "otp_phone": {
+      "type": "string",
+      "description": "Temporary phone OTP storage"
+    },
+    "otp_phone_expires": {
+      "type": "string",
+      "description": "Phone OTP expiry time"
+    },
+    "otp_phone_target": {
+      "type": "string",
+      "description": "Target phone number"
+    },
+    "otp_email": {
+      "type": "string",
+      "description": "Temporary email OTP storage"
+    },
+    "otp_email_expires": {
+      "type": "string",
+      "description": "Email OTP expiry time"
+    },
+    "otp_email_target": {
+      "type": "string",
+      "description": "Target email address"
+    }
+  },
+  "required": [
+    "user_id"
+  ]
+}

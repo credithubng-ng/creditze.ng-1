@@ -1,0 +1,66 @@
+{
+  "name": "Affiliate",
+  "type": "object",
+  "properties": {
+    "affiliate_code": {
+      "type": "string",
+      "description": "Format: TB00XXXX"
+    },
+    "name": {
+      "type": "string"
+    },
+    "email": {
+      "type": "string"
+    },
+    "phone": {
+      "type": "string"
+    },
+    "bank_name": {
+      "type": "string"
+    },
+    "account_number": {
+      "type": "string"
+    },
+    "account_name": {
+      "type": "string"
+    },
+    "commission_rate": {
+      "type": "number",
+      "description": "Commission percentage on realized revenue"
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "active",
+        "suspended",
+        "inactive"
+      ],
+      "default": "active"
+    },
+    "total_referrals": {
+      "type": "number",
+      "default": 0
+    },
+    "total_conversions": {
+      "type": "number",
+      "default": 0
+    },
+    "total_earnings": {
+      "type": "number",
+      "default": 0
+    },
+    "pending_earnings": {
+      "type": "number",
+      "default": 0
+    },
+    "paid_earnings": {
+      "type": "number",
+      "default": 0
+    }
+  },
+  "required": [
+    "affiliate_code",
+    "name",
+    "email"
+  ]
+}

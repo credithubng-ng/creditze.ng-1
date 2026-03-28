@@ -1,0 +1,55 @@
+{
+  "name": "EmploymentVerification",
+  "type": "object",
+  "properties": {
+    "user_id": {
+      "type": "string"
+    },
+    "employer_id": {
+      "type": "string",
+      "description": "Reference to Tier1Employer"
+    },
+    "work_email": {
+      "type": "string"
+    },
+    "verification_token": {
+      "type": "string",
+      "description": "Secure token for email verification"
+    },
+    "token_expires": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "token_used": {
+      "type": "boolean",
+      "default": false
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "pending",
+        "email_sent",
+        "verified",
+        "expired",
+        "failed"
+      ],
+      "default": "pending"
+    },
+    "verified_date": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "job_title": {
+      "type": "string"
+    },
+    "employment_start_date": {
+      "type": "string",
+      "format": "date"
+    }
+  },
+  "required": [
+    "user_id",
+    "employer_id",
+    "work_email"
+  ]
+}

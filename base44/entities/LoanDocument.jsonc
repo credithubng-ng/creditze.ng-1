@@ -1,0 +1,82 @@
+{
+  "name": "LoanDocument",
+  "type": "object",
+  "properties": {
+    "user_id": {
+      "type": "string",
+      "description": "Reference to the user"
+    },
+    "loan_id": {
+      "type": "string",
+      "description": "Optional reference to specific loan application"
+    },
+    "document_type": {
+      "type": "string",
+      "enum": [
+        "identity_card",
+        "passport",
+        "drivers_license",
+        "utility_bill",
+        "bank_statement",
+        "payslip",
+        "employment_letter",
+        "tax_certificate",
+        "property_document",
+        "other"
+      ],
+      "description": "Type of document"
+    },
+    "file_name": {
+      "type": "string",
+      "description": "Original file name"
+    },
+    "file_uri": {
+      "type": "string",
+      "description": "Secure file URI in private storage"
+    },
+    "file_size": {
+      "type": "number",
+      "description": "File size in bytes"
+    },
+    "file_type": {
+      "type": "string",
+      "description": "MIME type"
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "pending_review",
+        "approved",
+        "rejected",
+        "expired"
+      ],
+      "default": "pending_review"
+    },
+    "rejection_reason": {
+      "type": "string"
+    },
+    "reviewed_by": {
+      "type": "string",
+      "description": "Admin ID who reviewed"
+    },
+    "reviewed_date": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "expiry_date": {
+      "type": "string",
+      "format": "date",
+      "description": "Document expiry date if applicable"
+    },
+    "notes": {
+      "type": "string",
+      "description": "Additional notes or description"
+    }
+  },
+  "required": [
+    "user_id",
+    "document_type",
+    "file_name",
+    "file_uri"
+  ]
+}

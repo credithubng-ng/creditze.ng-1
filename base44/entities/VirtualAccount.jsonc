@@ -1,0 +1,61 @@
+{
+  "name": "VirtualAccount",
+  "type": "object",
+  "properties": {
+    "loan_id": {
+      "type": "string",
+      "description": "Reference to loan"
+    },
+    "user_id": {
+      "type": "string"
+    },
+    "account_number": {
+      "type": "string",
+      "description": "Virtual account number"
+    },
+    "account_name": {
+      "type": "string"
+    },
+    "bank_name": {
+      "type": "string"
+    },
+    "bank_code": {
+      "type": "string"
+    },
+    "provider": {
+      "type": "string",
+      "enum": [
+        "paystack",
+        "monnify"
+      ],
+      "default": "paystack"
+    },
+    "provider_reference": {
+      "type": "string",
+      "description": "Provider's unique reference"
+    },
+    "customer_code": {
+      "type": "string",
+      "description": "Paystack customer code"
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "active",
+        "inactive"
+      ],
+      "default": "active"
+    },
+    "total_received": {
+      "type": "number",
+      "default": 0,
+      "description": "Total amount received via this account"
+    }
+  },
+  "required": [
+    "loan_id",
+    "user_id",
+    "account_number",
+    "bank_name"
+  ]
+}

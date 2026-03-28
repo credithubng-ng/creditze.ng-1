@@ -1,0 +1,122 @@
+{
+  "name": "Dispute",
+  "type": "object",
+  "properties": {
+    "user_id": {
+      "type": "string"
+    },
+    "loan_id": {
+      "type": "string"
+    },
+    "dispute_type": {
+      "type": "string",
+      "enum": [
+        "loan_rejection",
+        "scoring_issue",
+        "collection_action",
+        "interest_calculation",
+        "disbursement_issue",
+        "other"
+      ],
+      "description": "Type of dispute"
+    },
+    "subject": {
+      "type": "string"
+    },
+    "description": {
+      "type": "string"
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "open",
+        "under_review",
+        "resolved",
+        "rejected",
+        "escalated"
+      ],
+      "default": "open"
+    },
+    "priority": {
+      "type": "string",
+      "enum": [
+        "low",
+        "medium",
+        "high",
+        "urgent"
+      ],
+      "default": "medium"
+    },
+    "evidence_urls": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "URLs of uploaded evidence/documents"
+    },
+    "admin_notes": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "admin_id": {
+            "type": "string"
+          },
+          "admin_name": {
+            "type": "string"
+          },
+          "note": {
+            "type": "string"
+          },
+          "timestamp": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      }
+    },
+    "responses": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "from": {
+            "type": "string",
+            "enum": [
+              "admin",
+              "user"
+            ]
+          },
+          "message": {
+            "type": "string"
+          },
+          "timestamp": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "admin_name": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "assigned_to": {
+      "type": "string",
+      "description": "Admin user ID"
+    },
+    "resolution": {
+      "type": "string",
+      "description": "Final resolution description"
+    },
+    "resolved_date": {
+      "type": "string",
+      "format": "date-time"
+    }
+  },
+  "required": [
+    "user_id",
+    "dispute_type",
+    "subject",
+    "description"
+  ]
+}

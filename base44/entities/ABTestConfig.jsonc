@@ -1,0 +1,136 @@
+{
+  "name": "ABTestConfig",
+  "type": "object",
+  "properties": {
+    "test_name": {
+      "type": "string",
+      "description": "Name of the A/B test"
+    },
+    "test_key": {
+      "type": "string",
+      "description": "Unique identifier for the test"
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "draft",
+        "active",
+        "paused",
+        "completed"
+      ],
+      "default": "draft"
+    },
+    "loan_type": {
+      "type": "string",
+      "enum": [
+        "urgent_10k",
+        "tier1_personal",
+        "all"
+      ],
+      "default": "all",
+      "description": "Which loan type this test applies to"
+    },
+    "variants": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "variant_id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "traffic_allocation": {
+            "type": "number",
+            "description": "Percentage of users (0-100)"
+          },
+          "strategy": {
+            "type": "object",
+            "properties": {
+              "interest_rate_adjustment": {
+                "type": "string",
+                "enum": [
+                  "aggressive",
+                  "moderate",
+                  "conservative",
+                  "risk_based"
+                ],
+                "description": "How to adjust interest rates"
+              },
+              "amount_adjustment": {
+                "type": "string",
+                "enum": [
+                  "generous",
+                  "standard",
+                  "conservative",
+                  "score_based"
+                ],
+                "description": "How to adjust loan amounts"
+              },
+              "tenure_flexibility": {
+                "type": "string",
+                "enum": [
+                  "fixed",
+                  "flexible",
+                  "risk_based"
+                ],
+                "description": "Tenure adjustment strategy"
+              },
+              "interest_discount_for_high_score": {
+                "type": "number",
+                "description": "% discount for scores above 85"
+              },
+              "interest_premium_for_risk": {
+                "type": "number",
+                "description": "% premium for detected risk flags"
+              },
+              "amount_boost_percentage": {
+                "type": "number",
+                "description": "% increase to standard amount"
+              }
+            }
+          }
+        }
+      },
+      "default": []
+    },
+    "start_date": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "end_date": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "target_sample_size": {
+      "type": "number",
+      "default": 1000
+    },
+    "current_sample_size": {
+      "type": "number",
+      "default": 0
+    },
+    "results": {
+      "type": "object",
+      "properties": {
+        "conversion_rate_by_variant": {
+          "type": "object"
+        },
+        "avg_loan_amount_by_variant": {
+          "type": "object"
+        },
+        "avg_interest_rate_by_variant": {
+          "type": "object"
+        },
+        "approval_rate_by_variant": {
+          "type": "object"
+        }
+      }
+    }
+  },
+  "required": [
+    "test_name",
+    "test_key"
+  ]
+}

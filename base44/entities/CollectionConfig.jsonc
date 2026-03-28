@@ -1,0 +1,66 @@
+{
+  "name": "CollectionConfig",
+  "type": "object",
+  "properties": {
+    "config_key": {
+      "type": "string",
+      "default": "default"
+    },
+    "reminder_days_before_due": {
+      "type": "array",
+      "items": {
+        "type": "number"
+      },
+      "description": "Days before due date to send reminders e.g. [3, 1]"
+    },
+    "overdue_reminder_days": {
+      "type": "array",
+      "items": {
+        "type": "number"
+      },
+      "description": "Days after due date to send overdue reminders e.g. [1, 3, 7, 14]"
+    },
+    "days_to_mark_overdue": {
+      "type": "number",
+      "default": 1,
+      "description": "Days after due date to mark loan as overdue"
+    },
+    "days_to_mark_defaulted": {
+      "type": "number",
+      "default": 90,
+      "description": "Days after due date to mark loan as defaulted"
+    },
+    "demand_letter_days": {
+      "type": "array",
+      "items": {
+        "type": "number"
+      },
+      "description": "Days overdue to send demand letters e.g. [30, 60]"
+    },
+    "final_notice_days": {
+      "type": "number",
+      "default": 75,
+      "description": "Days overdue to send final notice before default"
+    },
+    "direct_debit_retry_days": {
+      "type": "number",
+      "default": 3,
+      "description": "Days between direct debit retry attempts"
+    },
+    "max_direct_debit_retries": {
+      "type": "number",
+      "default": 3
+    },
+    "enable_auto_reminders": {
+      "type": "boolean",
+      "default": true
+    },
+    "enable_auto_direct_debit": {
+      "type": "boolean",
+      "default": true
+    }
+  },
+  "required": [
+    "config_key"
+  ]
+}

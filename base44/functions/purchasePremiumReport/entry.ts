@@ -355,32 +355,37 @@ Deno.serve(async (req) => {
             return Response.json({ error: 'Unauthorized' }, { status: 401 });
         }
 
-        const { reference, search_id } = await req.json();
+        const { reference, search_id, testMode, bvn: overrideBvn, email: overrideEmail } = await req.json();
 
         if (!reference) {
             return Response.json({ success: false, error: 'Payment reference is required' }, { status: 400 });
         }
 
-        // Verify Paystack payment
-        const verifyResponse = await base44.functions.invoke('paystackVerifyPayment', { reference });
-        if (!verifyResponse.data.success) {
-            return Response.json({ success: false, error: 'Payment verification failed' }, { status: 400 });
-        }
-
-        const paymentData = verifyResponse.data.data;
-        if (paymentData.amount < 250000) { // 2500 NGN in kobo
-            return Response.json({ success: false, error: 'Insufficient payment amount' }, { status: 400 });
+        // Skip payment verification in test mode
+        if (!testMode) {
+            const verifyResponse = await base44.functions.invoke('paystackVerifyPayment', { reference });
+            if (!verifyResponse.data.success) {
+                return Response.json({ success: false, error: 'Payment verification failed' }, { status: 400 });
+            }
+            const paymentData = verifyResponse.data.data;
+            if (paymentData.amount < 250000) {
+                return Response.json({ success: false, error: 'Insufficient payment amount' }, { status: 400 });
+            }
         }
 
         // Get KYC for BVN
-        const kycProfiles = await base44.entities.KYCProfile.filter({ user_id: user.id });
-        if (!kycProfiles || kycProfiles.length === 0) {
-            return Response.json({ success: false, error: 'KYC profile not found' }, { status: 400 });
+        let bvnToUse = overrideBvn;
+        if (!bvnToUse) {
+            const kycProfiles = await base44.entities.KYCProfile.filter({ user_id: user.id });
+            if (!kycProfiles || kycProfiles.length === 0) {
+                return Response.json({ success: false, error: 'KYC profile not found' }, { status: 400 });
+            }
+            bvnToUse = kycProfiles[0].bvn;
         }
-        const kyc = kycProfiles[0];
-        if (!kyc.bvn) {
-            return Response.json({ success: false, error: 'BVN not found in KYC profile' }, { status: 400 });
+        if (!bvnToUse) {
+            return Response.json({ success: false, error: 'BVN not found' }, { status: 400 });
         }
+        const emailToUse = overrideEmail || user.email;
 
         // Call CRC with REPORT_ID 104 (Classic Consumer Report)
         const CRC_USERNAME = Deno.env.get('CRC_USERNAME');
@@ -394,17 +399,17 @@ Deno.serve(async (req) => {
             Request: JSON.stringify({
                 '@REQUEST_ID': '1',
                 'REQUEST_PARAMETERS': {
-                    'REPORT_PARAMETERS': { '@REPORT_ID': '104', '@SUBJECT_TYPE': '1', '@RESPONSE_TYPE': '5' },
+                    'REPORT_PARAMETERS': { '@REPORT_ID': '101', '@SUBJECT_TYPE': '1', '@RESPONSE_TYPE': '5' },
                     'INQUIRY_REASON': { '@CODE': '1' },
                     'APPLICATION': { '@PRODUCT': '017', '@NUMBER': '232', '@AMOUNT': '15000', '@CURRENCY': 'NGN' }
                 },
-                'SEARCH_PARAMETERS': { '@SEARCH-TYPE': '4', 'BVN_NO': kyc.bvn }
+                'SEARCH_PARAMETERS': { '@SEARCH-TYPE': '4', 'BVN_NO': bvnToUse }
             }).replace(/"/g, "'"),
             UserName: CRC_USERNAME,
             Password: CRC_PASSWORD
         };
 
-        console.log('=== CRC PREMIUM REQUEST === BVN:', kyc.bvn);
+        console.log('=== CRC PREMIUM REQUEST === BVN:', bvnToUse);
 
         const crcResponse = await fetch(
             'https://webserver.creditreferencenigeria.net/JsonLiveRequest/JsonService.svc/CIRRequest/ProcessRequestJson',
@@ -413,11 +418,13 @@ Deno.serve(async (req) => {
 
         if (!crcResponse.ok) throw new Error(`CRC API error: ${crcResponse.status}`);
         const crcData = await crcResponse.json();
-        console.log('=== CRC PREMIUM RESPONSE ===', JSON.stringify(crcData).substring(0, 500));
+        console.log('=== CRC PREMIUM RESPONSE ===', JSON.stringify(crcData).substring(0, 2000));
 
         if (crcData.ErrorResponse) {
             const errorDesc = crcData.ErrorResponse.HEADER?.RESPONSETYPE?.DESCRIPTION || 'Credit bureau error';
-            return Response.json({ success: false, error: errorDesc }, { status: 400 });
+            const errorBody = JSON.stringify(crcData.ErrorResponse.BODY || {});
+            console.log('=== CRC ERROR BODY ===', errorBody);
+            return Response.json({ success: false, error: errorDesc, detail: crcData.ErrorResponse }, { status: 400 });
         }
 
         const body = crcData?.ConsumerHitResponse?.BODY || crcData?.ConsumerSearchResultResponse?.BODY || {};
@@ -438,7 +445,7 @@ Deno.serve(async (req) => {
 
         // Send email
         await base44.integrations.Core.SendEmail({
-            to: user.email,
+            to: emailToUse,
             subject: '📄 Your Premium Classic Consumer Report — Creditze',
             body: `
 <!DOCTYPE html><html><body style="margin:0;padding:20px;background:#f3f4f6;font-family:'Segoe UI',sans-serif;">
