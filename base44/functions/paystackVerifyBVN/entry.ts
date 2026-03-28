@@ -1,4 +1,4 @@
-import { createClientFromRequest } from 'npm:@base44/sdk@0.8.6';
+import { createClientFromRequest } from 'npm:@base44/sdk@0.8.23';
 
 Deno.serve(async (req) => {
     try {
@@ -19,53 +19,34 @@ Deno.serve(async (req) => {
             }, { status: 400 });
         }
 
-        const paystackKey = Deno.env.get('PAYSTACK_SECRET_KEY');
-        if (!paystackKey) {
+        const qoreidKey = Deno.env.get('QOREID_API_KEY');
+        if (!qoreidKey) {
             return Response.json({ 
                 success: false, 
-                error: 'Payment service not configured' 
+                error: 'QoreID service not configured' 
             }, { status: 500 });
         }
 
-        // Test Mode: Return mock data
-        if (paystackKey.startsWith('sk_test_')) {
-            console.log('Test mode detected - returning mock BVN data');
-            
-            // Get phone number from KYC profile
-            const kycData = await base44.entities.KYCProfile.filter({ user_id: user.id });
-            const phoneNumber = kycData[0]?.phone_number || '08012345678';
-            
-            return Response.json({ 
-                success: true,
-                data: {
-                    first_name: user.full_name?.split(' ')[0] || 'John',
-                    last_name: user.full_name?.split(' ').slice(-1)[0] || 'Doe',
-                    middle_name: user.full_name?.split(' ')[1] || 'Middle',
-                    full_name: user.full_name || 'John Middle Doe',
-                    phone_number: phoneNumber,
-                    date_of_birth: '1990-01-01',
-                    gender: 'male'
-                }
-            });
-        }
-
-        // Call Paystack BVN verification API
-        const response = await fetch(`https://api.paystack.co/bank/resolve_bvn/${bvn}`, {
-            method: 'GET',
+        // Call QoreID BVN verification API
+        const response = await fetch('https://api.qoreid.com/v1/identity/bvn/verify', {
+            method: 'POST',
             headers: {
-                'Authorization': `Bearer ${paystackKey}`,
+                'Authorization': `Bearer ${qoreidKey}`,
                 'Content-Type': 'application/json'
-            }
+            },
+            body: JSON.stringify({
+                bvn: bvn
+            })
         });
 
         const responseText = await response.text();
-        console.log('Paystack BVN API Response:', response.status, responseText);
+        console.log('QoreID BVN API Response:', response.status, responseText);
         
         let data;
         try {
             data = JSON.parse(responseText);
         } catch (parseError) {
-            console.error('Failed to parse Paystack response:', responseText);
+            console.error('Failed to parse QoreID response:', responseText);
             return Response.json({ 
                 success: false, 
                 error: 'Invalid response from verification service' 
@@ -75,27 +56,27 @@ Deno.serve(async (req) => {
         if (!response.ok) {
             return Response.json({ 
                 success: false, 
-                error: data.message || `BVN verification failed (${response.status})` 
+                error: data.message || data.error || `BVN verification failed (${response.status})` 
             }, { status: response.status });
         }
         
-        if (!data.status) {
+        if (!data.success && !data.data) {
             return Response.json({ 
                 success: false, 
-                error: data.message || 'BVN verification failed' 
+                error: data.message || data.error || 'BVN verification failed' 
             }, { status: 400 });
         }
 
-        // Extract BVN data
-        const bvnData = data.data;
+        // Extract BVN data from QoreID response
+        const bvnData = data.data || {};
         
         // Handle different BVN data formats
-        let fullName = bvnData.full_name || 
-                       `${bvnData.first_name || ''} ${bvnData.middle_name || ''} ${bvnData.last_name || ''}`.trim();
+        let fullName = bvnData.full_name || bvnData.fullName ||
+                       `${bvnData.first_name || bvnData.firstName || ''} ${bvnData.middle_name || bvnData.middleName || ''} ${bvnData.last_name || bvnData.lastName || ''}`.trim();
         
         // If still no full name, try combining available names
         if (!fullName) {
-            fullName = [bvnData.first_name, bvnData.middle_name, bvnData.last_name]
+            fullName = [bvnData.first_name || bvnData.firstName, bvnData.middle_name || bvnData.middleName, bvnData.last_name || bvnData.lastName]
                 .filter(Boolean)
                 .join(' ');
         }
@@ -103,13 +84,13 @@ Deno.serve(async (req) => {
         return Response.json({ 
             success: true,
             data: {
-                first_name: bvnData.first_name || '',
-                last_name: bvnData.last_name || '',
-                middle_name: bvnData.middle_name || '',
+                first_name: bvnData.first_name || bvnData.firstName || '',
+                last_name: bvnData.last_name || bvnData.lastName || '',
+                middle_name: bvnData.middle_name || bvnData.middleName || '',
                 full_name: fullName,
-                phone_number: bvnData.phone_number || bvnData.mobile || '',
-                date_of_birth: bvnData.date_of_birth || bvnData.dob || '',
-                gender: bvnData.gender?.toLowerCase() || ''
+                phone_number: bvnData.phone_number || bvnData.phoneNumber || bvnData.mobile || '',
+                date_of_birth: bvnData.date_of_birth || bvnData.dateOfBirth || bvnData.dob || '',
+                gender: (bvnData.gender || bvnData.Gender || '').toLowerCase()
             }
         });
 
