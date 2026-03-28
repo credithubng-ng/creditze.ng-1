@@ -1,8 +1,23 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.23';
 import { jsPDF } from 'npm:jspdf@4.0.0';
 
+const LOGO_URL = 'https://qtrypzzcjebvfcihiynt.supabase.co/storage/v1/object/public/base44-prod/public/69864d541609ebe758aa5d6d/ea48dae69_PHOTO-2026-02-05-09-26-23.jpg';
+
+async function fetchImageAsBase64(url) {
+    try {
+        const res = await fetch(url);
+        const buf = await res.arrayBuffer();
+        const bytes = new Uint8Array(buf);
+        let binary = '';
+        for (let i = 0; i < bytes.length; i++) binary += String.fromCharCode(bytes[i]);
+        return btoa(binary);
+    } catch (e) {
+        return null;
+    }
+}
+
 // ─── PDF GENERATOR ────────────────────────────────────────────────────────────
-function generateCreditReportPDF({ userName, score, searchId, reportDate, expiryDate, crcData, isTestMode }) {
+async function generateCreditReportPDF({ userName, score, searchId, reportDate, expiryDate, crcData, isTestMode }) {
     const doc = new jsPDF({ unit: 'mm', format: 'a4' });
     const W = 210;
     let y = 0;
@@ -11,23 +26,29 @@ function generateCreditReportPDF({ userName, score, searchId, reportDate, expiry
     doc.setFillColor(5, 150, 105);
     doc.rect(0, 0, W, 42, 'F');
 
-    // Logo circle
-    doc.setFillColor(255, 255, 255);
-    doc.circle(20, 21, 9, 'F');
-    doc.setTextColor(5, 150, 105);
-    doc.setFontSize(14);
-    doc.setFont('helvetica', 'bold');
-    doc.text('C', 17.5, 25);
+    // Logo image
+    const logoBase64 = await fetchImageAsBase64(LOGO_URL);
+    if (logoBase64) {
+        doc.addImage(logoBase64, 'JPEG', 10, 8, 50, 26);
+    } else {
+        // Fallback: text logo
+        doc.setFillColor(255, 255, 255);
+        doc.circle(20, 21, 9, 'F');
+        doc.setTextColor(5, 150, 105);
+        doc.setFontSize(14);
+        doc.setFont('helvetica', 'bold');
+        doc.text('C', 17.5, 25);
+        doc.setTextColor(255, 255, 255);
+        doc.setFontSize(20);
+        doc.text('CREDITZE', 35, 18);
+    }
 
-    // Title
-    doc.setTextColor(255, 255, 255);
-    doc.setFontSize(20);
-    doc.text('CREDITZE', 35, 18);
-    doc.setFontSize(11);
-    doc.setFont('helvetica', 'normal');
-    doc.text('Credit Bureau Report', 35, 26);
+    // Credit Bureau label on the right
+    doc.setTextColor(209, 250, 229);
     doc.setFontSize(9);
-    doc.text(isTestMode ? 'TEST MODE — Mock Data' : 'Powered by CRC Credit Bureau', 35, 34);
+    doc.setFont('helvetica', 'normal');
+    doc.text('Credit Bureau Report', W - 10, 20, { align: 'right' });
+    doc.text(isTestMode ? 'TEST MODE — Mock Data' : 'Powered by CRC Credit Bureau', W - 10, 28, { align: 'right' });
 
     y = 54;
 
@@ -244,7 +265,7 @@ Deno.serve(async (req) => {
             const reportDate = new Date().toLocaleDateString('en-NG');
             const expiryStr = expiryDate.toLocaleDateString('en-NG');
 
-            const pdfBytes = generateCreditReportPDF({
+            const pdfBytes = await generateCreditReportPDF({
                 userName: userRecord[0].full_name || 'Valued Customer',
                 score,
                 searchId,
