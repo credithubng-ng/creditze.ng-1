@@ -33,10 +33,32 @@ Deno.serve(async (req) => {
       return Response.json({ success: false, error: 'QoreID not configured' }, { status: 500 });
     }
 
+    // Get access token
+    const tokenResponse = await fetch('https://api.qoreid.com/token', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        api_key: qoreIdKey
+      })
+    });
+
+    if (!tokenResponse.ok) {
+      return Response.json({ success: false, error: 'Failed to authenticate with QoreID' }, { status: 400 });
+    }
+
+    const tokenData = await tokenResponse.json();
+    const accessToken = tokenData.access_token || tokenData.token;
+
+    if (!accessToken) {
+      return Response.json({ success: false, error: 'Failed to obtain access token' }, { status: 400 });
+    }
+
     const facialResponse = await fetch('https://api.qoreid.com/api/v1/kyc/bvn-face-match', {
       method: 'POST',
       headers: {
-        'Authorization': `Bearer ${qoreIdKey}`,
+        'Authorization': `Bearer ${accessToken}`,
         'Content-Type': 'application/json'
       },
       body: JSON.stringify({
