@@ -33,7 +33,7 @@ Deno.serve(async (req) => {
       return Response.json({ success: false, error: 'QoreID not configured' }, { status: 500 });
     }
 
-    const facialResponse = await fetch('https://api.myidentitypass.com/api/v1/kyc/bvn-face-match', {
+    const facialResponse = await fetch('https://api.qoreid.com/api/v1/kyc/bvn-face-match', {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${qoreIdKey}`,
