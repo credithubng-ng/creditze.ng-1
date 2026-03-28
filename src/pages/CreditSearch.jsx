@@ -47,6 +47,14 @@ export default function CreditSearch() {
       setError(null);
       
       try {
+        // Ensure user is loaded first
+        const currentUser = await base44.auth.me();
+        setUser(currentUser);
+
+        // Also load KYC so performCreditSearch can access it
+        const kycData = await base44.entities.KYCProfile.filter({ user_id: currentUser.id });
+        if (kycData[0]) setKyc(kycData[0]);
+
         // Verify payment
         const verifyResponse = await base44.functions.invoke('paystackVerifyPayment', {
           reference: reference
@@ -66,8 +74,8 @@ export default function CreditSearch() {
               payment_status: 'paid'
             });
 
-            // Perform credit search (uses testMode from state/checkbox)
-            await performCreditSearch(search.id);
+            // Perform credit search
+            await performCreditSearch(search.id, kycData[0]);
           } else {
             setError('Payment record not found');
             setProcessing(false);
@@ -165,12 +173,13 @@ export default function CreditSearch() {
     }
   };
 
-  const performCreditSearch = async (searchId) => {
+  const performCreditSearch = async (searchId, kycOverride) => {
     try {
-      // Get fresh KYC data if not loaded yet
-      let currentKyc = kyc;
+      // Use passed-in kyc or fall back to state
+      let currentKyc = kycOverride || kyc;
       if (!currentKyc) {
-        const kycData = await base44.entities.KYCProfile.filter({ user_id: user.id });
+        const currentUser = await base44.auth.me();
+        const kycData = await base44.entities.KYCProfile.filter({ user_id: currentUser.id });
         if (!kycData[0] || !kycData[0].bvn) {
           throw new Error('BVN not found. Please complete KYC first.');
         }
