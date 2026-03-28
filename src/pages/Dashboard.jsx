@@ -347,16 +347,20 @@ export default function Dashboard() {
                     </div>
                   </div>
 
-                  {/* Premium Reports */}
-                  {premiumReports.length > 0 && (
-                    <div className="pt-3 border-t border-gray-200">
-                      <div className="flex items-start gap-4">
-                        <div className="w-12 h-12 bg-purple-100 rounded-xl flex items-center justify-center flex-shrink-0">
-                          <Crown className="w-6 h-6 text-purple-600" />
-                        </div>
-                        <div className="flex-1">
-                          <h3 className="font-semibold text-gray-900 mb-1">Premium Reports</h3>
-                          <p className="text-sm text-gray-500 mb-3">Download your detailed premium analysis</p>
+                  {/* Premium Reports Section */}
+                  <div className="pt-3 border-t border-gray-200">
+                    <div className="flex items-start gap-4">
+                      <div className="w-12 h-12 bg-purple-100 rounded-xl flex items-center justify-center flex-shrink-0">
+                        <Crown className="w-6 h-6 text-purple-600" />
+                      </div>
+                      <div className="flex-1">
+                        <h3 className="font-semibold text-gray-900 mb-1">Premium Report</h3>
+                        <p className="text-sm text-gray-500 mb-3">
+                          {premiumReports.length > 0 
+                            ? 'Download your detailed premium analysis' 
+                            : 'Get comprehensive credit analysis with personalized improvement advice'}
+                        </p>
+                        {premiumReports.length > 0 ? (
                           <div className="space-y-2">
                             {premiumReports.slice(0, 3).map((report) => (
                               <Link
@@ -380,10 +384,16 @@ export default function Dashboard() {
                               </Link>
                             )}
                           </div>
-                        </div>
+                        ) : (
+                          <Button asChild size="sm" className="bg-purple-600 hover:bg-purple-700">
+                            <Link to={createPageUrl('CreditSearch')}>
+                              Pay ₦2,500 & Get Premium Report <ArrowRight className="ml-2 w-4 h-4" />
+                            </Link>
+                          </Button>
+                        )}
                       </div>
                     </div>
-                  )}
+                  </div>
                 </div>
               </CardContent>
             </Card>
