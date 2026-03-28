@@ -91,12 +91,23 @@ export default function Home() {
               className="h-10"
             />
           </div>
-          <Button 
-            onClick={handleGetStarted}
-            className="bg-emerald-600 hover:bg-emerald-700 text-white rounded-full px-6"
-          >
-            {isAuthenticated ? 'Dashboard' : 'Get Started'}
-          </Button>
+          <div className="flex items-center gap-3">
+            {!isAuthenticated && (
+              <Button 
+                variant="ghost"
+                onClick={() => base44.auth.redirectToLogin(createPageUrl('Dashboard'))}
+                className="text-gray-700 hover:text-gray-900 rounded-full px-6"
+              >
+                Login
+              </Button>
+            )}
+            <Button 
+              onClick={handleGetStarted}
+              className="bg-emerald-600 hover:bg-emerald-700 text-white rounded-full px-6"
+            >
+              {isAuthenticated ? 'Dashboard' : 'Get Started'}
+            </Button>
+          </div>
         </div>
       </header>
 
