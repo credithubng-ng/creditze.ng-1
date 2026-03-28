@@ -22,16 +22,12 @@ Deno.serve(async (req) => {
     }
     const kyc = kycData[0];
 
-    // Store BVN and initiate async verification with QoreID
+    // Verify BVN directly with QoreID
     const qoreIdKey = Deno.env.get('QOREID_API_KEY');
     if (!qoreIdKey) {
       return Response.json({ success: false, error: 'QoreID not configured' }, { status: 500 });
     }
 
-    // Generate unique reference for webhook tracking
-    const reference = `bvn_${user.id}_${Date.now()}`;
-
-    // Initiate async BVN verification with QoreID
     const qoreResponse = await fetch('https://api.myidentitypass.com/api/v1/kyc/bvn', {
       method: 'POST',
       headers: {
@@ -39,8 +35,7 @@ Deno.serve(async (req) => {
         'Content-Type': 'application/json'
       },
       body: JSON.stringify({
-        number: bvn,
-        reference: reference
+        number: bvn
       })
     });
 
@@ -56,22 +51,29 @@ Deno.serve(async (req) => {
     if (!qoreData.success) {
       return Response.json({ 
         success: false, 
-        error: qoreData.message || 'BVN verification failed with provider'
+        error: qoreData.message || 'BVN verification failed'
       }, { status: 400 });
     }
 
-    // Store BVN and reference for webhook tracking
+    // Update KYC with verified BVN data
+    const data = qoreData.data || {};
     await base44.entities.KYCProfile.update(kyc.id, {
       bvn: bvn,
-      verification_reference: reference,
-      verification_status: 'pending'
+      bvn_verified: true,
+      bvn_full_name: data.full_name || '',
+      bvn_phone_number: data.phone_number || '',
+      bvn_date_of_birth: data.date_of_birth || '',
+      bvn_gender: (data.gender || '').toLowerCase()
     });
 
     return Response.json({
       success: true,
-      message: 'BVN verification initiated. You will receive updates shortly.',
-      reference: reference,
-      status: 'pending'
+      data: {
+        full_name: data.full_name,
+        phone_number: data.phone_number,
+        date_of_birth: data.date_of_birth,
+        gender: data.gender
+      }
     });
 
   } catch (error) {
