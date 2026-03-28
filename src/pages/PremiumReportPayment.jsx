@@ -11,7 +11,8 @@ import {
   AlertCircle,
   ArrowLeft,
   Download,
-  Shield
+  Shield,
+  TrendingUp
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
@@ -25,6 +26,8 @@ export default function PremiumReportPayment() {
   const [error, setError] = useState(null);
   const [purchaseComplete, setPurchaseComplete] = useState(false);
   const [reportUrl, setReportUrl] = useState(null);
+  const [aiAdvice, setAiAdvice] = useState(null);
+  const [score, setScore] = useState(null);
 
   const searchParams = new URLSearchParams(window.location.search);
   const searchId = searchParams.get('search_id');
@@ -62,6 +65,8 @@ export default function PremiumReportPayment() {
       if (response.data.success) {
         setPurchaseComplete(true);
         setReportUrl(response.data.report_url);
+        setAiAdvice(response.data.ai_advice);
+        setScore(response.data.score);
       } else {
         setError(response.data.error || 'Purchase failed');
       }
@@ -146,18 +151,38 @@ export default function PremiumReportPayment() {
                 <CheckCircle2 className="w-10 h-10 text-emerald-600" />
               </div>
               <h2 className="text-2xl font-bold text-gray-900 mb-2">Report Ready!</h2>
-              <p className="text-gray-500 mb-8">
+              <p className="text-gray-500 mb-2">
                 Your premium credit report has been sent to {user?.email}
               </p>
+
+              {score && (
+                <div className="bg-gray-900 rounded-xl px-6 py-4 mb-6 text-center">
+                  <p className="text-gray-400 text-xs uppercase tracking-widest mb-1">Credit Score</p>
+                  <p className={`text-4xl font-bold mb-1 ${score >= 700 ? 'text-emerald-400' : score >= 600 ? 'text-green-400' : score >= 500 ? 'text-yellow-400' : 'text-red-400'}`}>{score}</p>
+                  <p className={`text-sm font-medium ${score >= 700 ? 'text-emerald-400' : score >= 600 ? 'text-green-400' : score >= 500 ? 'text-yellow-400' : 'text-red-400'}`}>
+                    {score >= 700 ? 'Excellent' : score >= 600 ? 'Good' : score >= 500 ? 'Fair' : 'Poor'} Rating
+                  </p>
+                </div>
+              )}
               
               {reportUrl && (
                 <Button 
                   onClick={downloadReport}
-                  className="w-full bg-emerald-600 hover:bg-emerald-700 mb-4"
+                  className="w-full bg-gray-900 hover:bg-gray-800 mb-4"
                 >
                   <Download className="w-4 h-4 mr-2" />
-                  Download Report
+                  Download Premium Report
                 </Button>
+              )}
+
+              {aiAdvice && (
+                <div className="text-left bg-emerald-50 border border-emerald-200 rounded-xl p-4 mb-4">
+                  <div className="flex items-center gap-2 mb-3">
+                    <TrendingUp className="w-5 h-5 text-emerald-600" />
+                    <h4 className="font-semibold text-gray-900 text-sm">Your Personalised Credit Advice</h4>
+                  </div>
+                  <p className="text-gray-700 text-xs leading-relaxed whitespace-pre-line">{aiAdvice}</p>
+                </div>
               )}
               
               <Button 
