@@ -310,9 +310,9 @@ Deno.serve(async (req) => {
             return Response.json({ success: false, error: 'Payment verification failed' }, { status: 400 });
         }
 
-        // Amount check is optional — skip if data structure is different
-        const paymentAmount = verifyResponse.data?.data?.amount ?? verifyResponse.data?.amount;
-        if (paymentAmount !== undefined && paymentAmount < 250000) {
+        // paystackVerifyPayment returns amount in Naira (already converted from kobo)
+        const paymentAmount = verifyResponse.data?.amount;
+        if (paymentAmount !== undefined && paymentAmount < 2500) {
             return Response.json({ success: false, error: 'Insufficient payment amount' }, { status: 400 });
         }
 
