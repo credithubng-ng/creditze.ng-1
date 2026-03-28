@@ -2,7 +2,6 @@ import { createClientFromRequest } from 'npm:@base44/sdk@0.8.23';
 import { jsPDF } from 'npm:jspdf@4.0.0';
 
 const LOGO_URL = 'https://qtrypzzcjebvfcihiynt.supabase.co/storage/v1/object/public/base44-prod/public/69864d541609ebe758aa5d6d/ea48dae69_PHOTO-2026-02-05-09-26-23.jpg';
-const CRC_ENDPOINT = 'https://webserver.creditreferencenigeria.net/JsonLiveRequest/JsonService.svc/CIRRequest/ProcessRequestJson';
 
 async function fetchImageAsBase64(url) {
     try {
@@ -325,47 +324,16 @@ Deno.serve(async (req) => {
             return Response.json({ success: false, error: 'Insufficient payment amount' }, { status: 400 });
         }
 
-        // 2. Get KYC for BVN
-        const kycProfiles = await base44.entities.KYCProfile.filter({ user_id: user.id });
-        if (!kycProfiles || kycProfiles.length === 0 || !kycProfiles[0].bvn) {
-            return Response.json({ success: false, error: 'BVN not found. Please complete KYC first.' }, { status: 400 });
+        // 2. Get existing credit search record with bureau data
+        const creditSearches = await base44.entities.CreditSearch.filter({ id: search_id });
+        if (!creditSearches || creditSearches.length === 0) {
+            return Response.json({ success: false, error: 'Credit search record not found.' }, { status: 400 });
         }
-        const bvn = kycProfiles[0].bvn;
-
-        // 3. Fetch CRC report using BVN
-        const CRC_USERNAME = Deno.env.get('CRC_USERNAME');
-        const CRC_PASSWORD = Deno.env.get('CRC_PASSWORD');
-        if (!CRC_USERNAME || !CRC_PASSWORD) {
-            return Response.json({ success: false, error: 'CRC credentials not configured' }, { status: 500 });
+        const creditSearch = creditSearches[0];
+        if (!creditSearch.bureau_response) {
+            return Response.json({ success: false, error: 'No bureau data found for this search. Please run a credit search first.' }, { status: 400 });
         }
-
-        const requestPayload = {
-            Request: JSON.stringify({
-                '@REQUEST_ID': '1',
-                'REQUEST_PARAMETERS': {
-                    'REPORT_PARAMETERS': { '@REPORT_ID': '101', '@SUBJECT_TYPE': '1', '@RESPONSE_TYPE': '5' },
-                    'INQUIRY_REASON': { '@CODE': '1' },
-                    'APPLICATION': { '@PRODUCT': '017', '@NUMBER': '232', '@AMOUNT': '15000', '@CURRENCY': 'NGN' }
-                },
-                'SEARCH_PARAMETERS': { '@SEARCH-TYPE': '4', 'BVN_NO': bvn }
-            }).replace(/"/g, "'"),
-            UserName: CRC_USERNAME,
-            Password: CRC_PASSWORD
-        };
-
-        console.log('=== PREMIUM CRC REQUEST === BVN:', bvn);
-        const crcResponse = await fetch(CRC_ENDPOINT, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(requestPayload)
-        });
-        if (!crcResponse.ok) throw new Error(`CRC API error: ${crcResponse.status}`);
-        const crcData = await crcResponse.json();
-
-        if (crcData.ErrorResponse) {
-            const errDesc = crcData.ErrorResponse.HEADER?.RESPONSETYPE?.DESCRIPTION || 'Unknown CRC error';
-            return Response.json({ success: false, error: `Credit bureau error: ${errDesc}` }, { status: 400 });
-        }
+        const crcData = creditSearch.bureau_response;
 
         // Extract score
         const body = crcData?.ConsumerHitResponse?.BODY || {};
