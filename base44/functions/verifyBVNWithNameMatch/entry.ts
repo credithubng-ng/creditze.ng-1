@@ -66,6 +66,7 @@ Deno.serve(async (req) => {
     const bvnData = qoreIdData.data || {};
     const bvnFullName = (bvnData.name || '').trim();
     const bvnPhone = bvnData.phone_number || '';
+    const bvnEmail = bvnData.email || '';
     const bvnDob = bvnData.date_of_birth || '';
     const bvnGender = bvnData.gender?.toLowerCase() || '';
 
@@ -104,7 +105,14 @@ Deno.serve(async (req) => {
       }, { status: 400 });
     }
 
-    // BVN is valid, send email OTP
+    // BVN is valid, send email OTP to BVN email on record
+    if (!bvnEmail) {
+      return Response.json({ 
+        success: false, 
+        error: 'No email found on BVN record. Please contact support.' 
+      }, { status: 400 });
+    }
+
     const otpCode = Math.floor(100000 + Math.random() * 900000).toString();
     const expiresAt = new Date(Date.now() + 15 * 60 * 1000).toISOString(); // 15 minutes
 
@@ -118,12 +126,12 @@ Deno.serve(async (req) => {
       bvn_name_match_score: nameMatchCount,
       otp_email: otpCode,
       otp_email_expires: expiresAt,
-      otp_email_target: user.email
+      otp_email_target: bvnEmail
     });
 
-    // Send email OTP
+    // Send email OTP to BVN email on record
     await base44.integrations.Core.SendEmail({
-      to: user.email,
+      to: bvnEmail,
       subject: '🔐 BVN Verification Code — Creditze',
       body: `<!DOCTYPE html>
 <html>
