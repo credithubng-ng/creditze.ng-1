@@ -307,7 +307,7 @@ export default function KYC() {
     }
     setSaving(true);
     try {
-      const response = await base44.functions.invoke('paystackVerifyBVN', {
+      const response = await base44.functions.invoke('verifyBVNWithNameMatch', {
         bvn: formData.bvn
       });
 
@@ -315,15 +315,9 @@ export default function KYC() {
         throw new Error(response.data.error || 'BVN verification failed');
       }
 
-      await base44.entities.KYCProfile.update(kyc.id, {
-        bvn: formData.bvn,
-        bvn_verified: true,
-        bvn_full_name: response.data.data.full_name,
-        bvn_phone_number: response.data.data.phone_number,
-        bvn_date_of_birth: response.data.data.date_of_birth,
-        bvn_gender: response.data.data.gender
-      });
-      setCurrentStep(3); // Move to NIN
+      // OTP sent to BVN email, move to OTP verification
+      setOtpSent(true);
+      setCurrentStep('bvn-otp');
       setError(null);
     } catch (err) {
       setError(err.message || 'BVN verification failed. Please check and try again.');
@@ -359,7 +353,7 @@ export default function KYC() {
     }
     setSaving(true);
     try {
-      const response = await base44.functions.invoke('paystackVerifyNIN', {
+      const response = await base44.functions.invoke('verifyNINQoreID', {
         nin: formData.nin
       });
 
