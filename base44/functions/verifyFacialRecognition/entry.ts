@@ -1,56 +1,5 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.23';
 
-const QOREID_BASE_URL = Deno.env.get("QOREID_BASE_URL") || "https://api.qoreid.com";
-
-async function getQoreIdToken() {
-  const response = await fetch(`${QOREID_BASE_URL}/token`, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      "Accept": "application/json"
-    },
-    body: JSON.stringify({
-      clientId: Deno.env.get("QOREID_CLIENT_ID"),
-      secret: Deno.env.get("QOREID_SECRET")
-    })
-  });
-
-  const data = await response.json().catch(() => ({}));
-
-  if (!response.ok) {
-    throw new Error(`QoreID token error: ${response.status} ${JSON.stringify(data)}`);
-  }
-
-  if (!data.accessToken) {
-    throw new Error("QoreID token missing accessToken");
-  }
-
-  return data.accessToken;
-}
-
-async function qoreIdRequest(endpoint, options = {}) {
-  const token = await getQoreIdToken();
-
-  const response = await fetch(`${QOREID_BASE_URL}${endpoint}`, {
-    method: options.method || "POST",
-    headers: {
-      "Authorization": `Bearer ${token}`,
-      "Content-Type": "application/json",
-      "Accept": "application/json",
-      ...(options.headers || {})
-    },
-    body: options.body ? JSON.stringify(options.body) : undefined
-  });
-
-  const data = await response.json().catch(() => ({}));
-
-  if (!response.ok) {
-    throw new Error(`QoreID API error: ${response.status} ${JSON.stringify(data)}`);
-  }
-
-  return data;
-}
-
 Deno.serve(async (req) => {
   try {
     const base44 = createClientFromRequest(req);
@@ -73,21 +22,54 @@ Deno.serve(async (req) => {
     }
     const kyc = kycData[0];
 
-    // Ensure NIN is verified or available
-    if (!kyc.nin) {
-      return Response.json({ success: false, error: 'NIN must be verified first' }, { status: 400 });
+    // Ensure BVN is verified
+    if (!kyc.bvn_verified) {
+      return Response.json({ success: false, error: 'BVN must be verified first' }, { status: 400 });
     }
 
-    // Verify facial recognition with QoreID
-    const facialData = await qoreIdRequest(`/v1/ng/identities/face-verification/nin`, {
-      method: "POST",
-      body: {
-        idNumber: kyc.nin,
-        selfieImage: selfie_image_url
-      }
+    // Call QoreID for facial recognition matching against BVN
+    const qoreIdKey = Deno.env.get('QOREID_API_KEY');
+    if (!qoreIdKey) {
+      return Response.json({ success: false, error: 'QoreID not configured' }, { status: 500 });
+    }
+
+    // QoreID facial matching endpoint
+    const facialResponse = await fetch('https://api.qoreid.com/api/v1/verification/verify_bvn_with_face', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${qoreIdKey}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        bvn: kyc.bvn,
+        selfie_image_url: selfie_image_url
+      })
     });
 
-    // Update KYC with facial recognition result
+    const facialData = await facialResponse.json();
+
+    if (!facialData.success) {
+      return Response.json({
+        success: false,
+        error: facialData.message || 'Facial recognition failed. Please ensure good lighting and clear visibility of your face.',
+        code: 'FACIAL_MATCH_FAILED'
+      }, { status: 400 });
+    }
+
+    // Check match confidence
+    const matchScore = facialData.data?.match_score || 0;
+    const isMatch = matchScore >= 0.8; // 80% confidence threshold
+
+    if (!isMatch) {
+      return Response.json({
+        success: false,
+        error: 'Face does not match BVN record. Please try again with a clear, well-lit photo.',
+        matchScore: matchScore,
+        code: 'LOW_MATCH_CONFIDENCE'
+      }, { status: 400 });
+    }
+
+    // Update KYC with successful facial recognition
     await base44.entities.KYCProfile.update(kyc.id, {
       facial_recognition_verified: true,
       facial_recognition_image_url: selfie_image_url
@@ -96,14 +78,15 @@ Deno.serve(async (req) => {
     return Response.json({
       success: true,
       message: 'Facial recognition verified successfully',
-      data: facialData
+      matchScore: matchScore,
+      facialVerified: true
     });
 
   } catch (error) {
-    console.error('Facial recognition error:', error);
+    console.error('Facial recognition verification error:', error);
     return Response.json({ 
       success: false, 
-      error: error.message || 'Facial recognition failed' 
+      error: error.message || 'Facial recognition verification failed' 
     }, { status: 500 });
   }
 });
