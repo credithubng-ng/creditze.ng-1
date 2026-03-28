@@ -557,25 +557,56 @@ Deno.serve(async (req) => {
         try {
             const accounts = body?.ACCOUNTLIST || [];
             const accountArr = Array.isArray(accounts) ? accounts : [accounts];
-            const accountSummary = accountArr.slice(0, 5).map(a => {
+
+            // Build a detailed, accurate account picture
+            const accountDetails = accountArr.filter(a => a.ACCOUNT).map(a => {
                 const acc = a.ACCOUNT || {};
-                return `${acc['@INSTITUTION'] || ''} - ${acc['@ACCOUNT-TYPE'] || ''}, Balance: ${acc['@BALANCE'] || '0'}, Status: ${acc['@STATUS'] || 'Unknown'}`;
+                const balance = parseFloat(String(acc['@BALANCE'] || '0').replace(/,/g, '')) || 0;
+                const overdue = parseFloat(String(acc['@OVERDUE-AMOUNT'] || '0').replace(/,/g, '')) || 0;
+                const status = acc['@STATUS'] || 'Unknown';
+                return `  - ${acc['@INSTITUTION'] || 'Unknown'} | Type: ${acc['@ACCOUNT-TYPE'] || 'N/A'} | Balance: ₦${balance.toLocaleString()} | Overdue: ₦${overdue.toLocaleString()} | Status: ${status} | Opened: ${acc['@DATE-OPENED'] || 'N/A'} | Last Activity: ${acc['@LAST-UPDATED'] || 'N/A'}`;
             }).join('\n');
 
+            // Total balances and overdue amounts
+            const totalBalance = accountArr.reduce((sum, a) => sum + (parseFloat(String(a.ACCOUNT?.['@BALANCE'] || '0').replace(/,/g, '')) || 0), 0);
+            const totalOverdue = accountArr.reduce((sum, a) => sum + (parseFloat(String(a.ACCOUNT?.['@OVERDUE-AMOUNT'] || '0').replace(/,/g, '')) || 0), 0);
+            const activeAccounts = accountArr.filter(a => (a.ACCOUNT?.['@STATUS'] || '').toLowerCase().includes('active')).length;
+            const closedAccounts = accountArr.filter(a => (a.ACCOUNT?.['@STATUS'] || '').toLowerCase().includes('close') || (a.ACCOUNT?.['@STATUS'] || '').toLowerCase().includes('settled')).length;
+
+            // Classification summary
+            const classArr2 = body?.ClassificationInsType ? (Array.isArray(body.ClassificationInsType) ? body.ClassificationInsType : [body.ClassificationInsType]) : [];
+            const classificationSummary = classArr2.map(c => `  - ${c.INSTITUTION_TYPE}: ${c.NO_OF_ACCOUNTS} accounts, Sanctioned: ₦${c.APPROVED_CREDIT_SANCTIONED || 0}, Outstanding: ₦${c.OUSTANDING_BALANCE || 0}`).join('\n');
+
             const aiResult = await base44.integrations.Core.InvokeLLM({
-                prompt: `You are a Nigerian financial advisor helping someone understand and improve their credit score ethically.
+                prompt: `You are a Nigerian financial credit counsellor writing a personalised credit improvement plan for a real person based on their actual CRC bureau report data.
 
-The user's credit profile:
-- Credit Score: ${score} (${scoreRating})
-- Reason Codes from Bureau:
-${reasonCodes.map(r => '  • ' + r).join('\n') || '  • No specific reason codes provided'}
-- Account summary (up to 5):
-${accountSummary || 'No account data available'}
+IMPORTANT: Your advice MUST be grounded strictly in the actual data below. Do NOT give generic advice. Address what is actually in the report — if outstanding balance is zero, say so and explain why that's good. If there are delinquency reason codes but zero overdue, clarify that the codes may refer to historical events and advise accordingly.
 
-Write 5-7 specific, practical, ethical, and disciplined tips to help this person improve their credit score. 
-Focus on Nigerian financial context (banks, loans, repayment culture).
-Be direct, encouraging, and non-judgmental. Use plain paragraphs (no markdown). 
-Start with "Here are personalised steps to improve your credit score:"`,
+--- ACTUAL CREDIT REPORT DATA ---
+Credit Score: ${score} (${scoreRating})
+Total Accounts: ${accountArr.filter(a => a.ACCOUNT).length}
+Active Accounts: ${activeAccounts}
+Closed/Settled Accounts: ${closedAccounts}
+Total Outstanding Balance: ₦${totalBalance.toLocaleString()}
+Total Overdue Amount: ₦${totalOverdue.toLocaleString()}
+
+Bureau Reason Codes (why the score is at this level):
+${reasonCodes.length > 0 ? reasonCodes.map(r => '  • ' + r).join('\n') : '  • No specific reason codes provided'}
+
+Individual Accounts:
+${accountDetails || '  No account data available'}
+
+Institution Classification:
+${classificationSummary || '  No classification data'}
+--- END OF DATA ---
+
+Write 5-6 paragraphs of personalised, practical credit improvement advice directly addressing what is shown in this report. 
+- If total overdue is ₦0, acknowledge this positively and explain the delinquency reason codes may be historical.
+- Comment on the mix of account types (banks, micro-lenders etc.) and what it means.
+- Address the specific reason codes and what the person can actually do about each one.
+- Use plain paragraphs only (no bullet points, no markdown, no headers).
+- Write in a warm, encouraging but professional tone suitable for a Nigerian audience.
+- Start with: "Based on your credit report, here is what your data shows and how you can improve your score:"`,
                 response_json_schema: null
             });
             aiAdvice = aiResult || '';
