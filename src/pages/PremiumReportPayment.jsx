@@ -21,8 +21,10 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 export default function PremiumReportPayment() {
   const navigate = useNavigate();
   const [user, setUser] = useState(null);
+  const searchParams2 = new URLSearchParams(window.location.search);
+  const hasReference = !!(searchParams2.get('reference') || searchParams2.get('trxref'));
   const [loading, setLoading] = useState(true);
-  const [processing, setProcessing] = useState(false);
+  const [processing, setProcessing] = useState(hasReference);
   const [error, setError] = useState(null);
   const [purchaseComplete, setPurchaseComplete] = useState(false);
   const [reportUrl, setReportUrl] = useState(null);
@@ -31,7 +33,8 @@ export default function PremiumReportPayment() {
 
   const searchParams = new URLSearchParams(window.location.search);
   const searchId = searchParams.get('search_id');
-  const reference = searchParams.get('reference');
+  // Paystack appends both 'reference' and 'trxref' to the callback URL
+  const reference = searchParams.get('reference') || searchParams.get('trxref');
 
   useEffect(() => {
     loadData();
@@ -90,7 +93,7 @@ export default function PremiumReportPayment() {
       const response = await base44.functions.invoke('paystackInitializePayment', {
         amount: 2500,
         email: user.email,
-        callback_url: `${window.location.origin}${createPageUrl('PremiumReportPayment')}?search_id=${searchId}`
+        callback_url: `${window.location.origin}/PremiumReportPayment?search_id=${searchId}`
       });
 
       if (response.data.success) {
