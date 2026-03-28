@@ -214,9 +214,9 @@ async function generatePremiumPDF({ userName, score, searchId, crcData, aiAdvice
         y += 4;
     }
 
-    // Consumer info
-    const consumer = body?.CONSUMER;
-    if (consumer) {
+    // Consumer info — pulled from ConsCommDetails_Subject
+    const consumerSubject = body?.ConsCommDetails?.ConsCommDetails_Subject;
+    if (consumerSubject) {
         if (y > 240) { doc.addPage(); y = 20; }
         y += 2;
         doc.setTextColor(31, 41, 55);
@@ -226,13 +226,11 @@ async function generatePremiumPDF({ userName, score, searchId, crcData, aiAdvice
         y += 6;
 
         const infoRows = [];
-        const name = consumer?.NAME;
-        if (name) {
-            const fullName = [name.FIRSTNAME, name.MIDDLENAME, name.LASTNAME].filter(Boolean).join(' ');
-            if (fullName) infoRows.push(['Full Name', fullName]);
-        }
-        if (consumer?.DATE_OF_BIRTH || consumer?.DOB) infoRows.push(['Date of Birth', consumer.DATE_OF_BIRTH || consumer.DOB]);
-        if (consumer?.GENDER) infoRows.push(['Gender', consumer.GENDER]);
+        if (consumerSubject.NAME) infoRows.push(['Full Name', consumerSubject.NAME]);
+        if (consumerSubject.DATE_OF_BIRTH) infoRows.push(['Date of Birth', consumerSubject.DATE_OF_BIRTH]);
+        if (consumerSubject.GENDER) infoRows.push(['Gender', consumerSubject.GENDER]);
+        if (consumerSubject.NATIONALITY) infoRows.push(['Nationality', consumerSubject.NATIONALITY]);
+        if (consumerSubject.PHONE_NO1) infoRows.push(['Phone', consumerSubject.PHONE_NO1]);
 
         doc.setFontSize(9);
         for (const [label, value] of infoRows) {
@@ -241,17 +239,58 @@ async function generatePremiumPDF({ userName, score, searchId, crcData, aiAdvice
             doc.text(label + ':', 20, y);
             doc.setTextColor(31, 41, 55);
             doc.setFont('helvetica', 'bold');
-            doc.text(value || 'N/A', 80, y);
+            doc.text(String(value || 'N/A'), 80, y);
             y += 6;
         }
         y += 4;
     }
 
+    // Product Type Classification
+    const prodTypes = body?.ClassificationProdType;
+    const prodArr = Array.isArray(prodTypes) ? prodTypes : (prodTypes ? [prodTypes] : []);
+    if (prodArr.length > 0) {
+        if (y > 230) { doc.addPage(); y = 20; }
+        y += 4;
+        doc.setTextColor(31, 41, 55);
+        doc.setFontSize(10);
+        doc.setFont('helvetica', 'bold');
+        doc.text('Account Classification by Product Type', 15, y);
+        y += 6;
+
+        doc.setFillColor(31, 41, 55);
+        doc.rect(15, y, W - 30, 8, 'F');
+        doc.setTextColor(255, 255, 255);
+        doc.setFontSize(7.5);
+        doc.text('Product Type', 19, y + 5.5);
+        doc.text('Accounts', 80, y + 5.5);
+        doc.text('Active (6mo)', 110, y + 5.5);
+        doc.text('Sanctioned (₦)', 140, y + 5.5);
+        doc.text('Outstanding (₦)', 175, y + 5.5);
+        y += 8;
+
+        let pAlt = false;
+        for (const p of prodArr) {
+            if (!p.PRODUCT_TYPE) continue;
+            if (y > 270) { doc.addPage(); y = 20; }
+            if (pAlt) { doc.setFillColor(248, 250, 252); doc.rect(15, y, W - 30, 7, 'F'); }
+            doc.setTextColor(55, 65, 81);
+            doc.setFont('helvetica', 'normal');
+            doc.setFontSize(7.5);
+            doc.text((p.PRODUCT_TYPE || '').substring(0, 22), 19, y + 5);
+            doc.text((p.NO_OF_ACCOUNTS || '0').toString(), 80, y + 5);
+            doc.text((p.NO_ACC_LAST_SIX_MON || '0').toString(), 110, y + 5);
+            doc.text(String(p.SANCTIONED_AMOUNT || '0').trim().substring(0, 18), 140, y + 5);
+            doc.text(String(p.TOTAL_OUTSTANDING_BALANCE || '0').trim().substring(0, 18), 175, y + 5);
+            y += 7;
+            pAlt = !pAlt;
+        }
+        y += 4;
+    }
+
     // Inquiry History
-    const inquiries = body?.INQUIRYLIST || body?.ENQUIRYLIST || [];
-    const inquiryArr = Array.isArray(inquiries) ? inquiries : (inquiries ? [inquiries] : []);
-    const validInquiries = inquiryArr.filter(i => i?.INQUIRY || i?.ENQUIRY);
-    if (validInquiries.length > 0) {
+    const inquiryHistory = body?.InquiryHistoryDetails;
+    const inquiryArr = Array.isArray(inquiryHistory) ? inquiryHistory : (inquiryHistory ? [inquiryHistory] : []);
+    if (inquiryArr.length > 0) {
         if (y > 230) { doc.addPage(); y = 20; }
         y += 4;
         doc.setTextColor(31, 41, 55);
@@ -265,69 +304,134 @@ async function generatePremiumPDF({ userName, score, searchId, crcData, aiAdvice
         doc.setTextColor(255, 255, 255);
         doc.setFontSize(7.5);
         doc.text('Institution', 19, y + 5.5);
-        doc.text('Inquiry Type', 90, y + 5.5);
-        doc.text('Date', 150, y + 5.5);
-        doc.text('Amount (₦)', 175, y + 5.5);
+        doc.text('Institution Type', 95, y + 5.5);
+        doc.text('Facility Type', 148, y + 5.5);
+        doc.text('Date', 183, y + 5.5);
         y += 8;
 
         let inqAlt = false;
-        for (const item of validInquiries.slice(0, 15)) {
-            const inq = item.INQUIRY || item.ENQUIRY || {};
+        for (const inq of inquiryArr.slice(0, 15)) {
             if (y > 270) { doc.addPage(); y = 20; }
             if (inqAlt) { doc.setFillColor(248, 250, 252); doc.rect(15, y, W - 30, 7, 'F'); }
             doc.setTextColor(55, 65, 81);
             doc.setFont('helvetica', 'normal');
             doc.setFontSize(7.5);
-            doc.text((inq['@INSTITUTION'] || inq['@SUBSCRIBER-NAME'] || 'N/A').substring(0, 30), 19, y + 5);
-            doc.text((inq['@INQUIRY-TYPE'] || inq['@REASON'] || 'N/A').substring(0, 18), 90, y + 5);
-            doc.text((inq['@DATE'] || inq['@INQUIRY-DATE'] || 'N/A'), 150, y + 5);
-            const amt = inq['@AMOUNT'] ? Number(String(inq['@AMOUNT']).replace(/,/g, '')).toLocaleString('en-NG') : 'N/A';
-            doc.text(amt, 175, y + 5);
+            doc.text((inq.INSTITUTION_NAME || 'N/A').substring(0, 35), 19, y + 5);
+            doc.text((inq.INSTITUTION_TYPE || 'N/A').substring(0, 18), 95, y + 5);
+            doc.text((inq.FACILITY_TYPE || 'N/A').substring(0, 14), 148, y + 5);
+            doc.text((inq.INQUIRY_DATE || 'N/A'), 183, y + 5);
             y += 7;
             inqAlt = !inqAlt;
         }
         y += 4;
     }
 
-    // Address History
-    const addresses = body?.ADDRESSLIST || body?.ADDRESS_HISTORY || [];
-    const addressArr = Array.isArray(addresses) ? addresses : (addresses ? [addresses] : []);
-    const validAddresses = addressArr.filter(a => a?.ADDRESS || a?.ADDRESSDETAIL);
-    if (validAddresses.length > 0) {
+    // Inquiry by Product Summary
+    const inqProduct = body?.Inquiry_Product;
+    const inqProdArr = Array.isArray(inqProduct) ? inqProduct : (inqProduct ? [inqProduct] : []);
+    if (inqProdArr.length > 0) {
         if (y > 240) { doc.addPage(); y = 20; }
         y += 4;
         doc.setTextColor(31, 41, 55);
         doc.setFontSize(10);
         doc.setFont('helvetica', 'bold');
-        doc.text('Address History', 15, y);
+        doc.text('Total Inquiries by Product Type', 15, y);
         y += 6;
 
-        let addrAlt = false;
-        for (const item of validAddresses.slice(0, 5)) {
-            const addr = item.ADDRESS || item.ADDRESSDETAIL || {};
+        doc.setFillColor(31, 41, 55);
+        doc.rect(15, y, W - 30, 8, 'F');
+        doc.setTextColor(255, 255, 255);
+        doc.setFontSize(7.5);
+        doc.text('Product', 19, y + 5.5);
+        doc.text('Banks', 80, y + 5.5);
+        doc.text('Micro Lenders', 100, y + 5.5);
+        doc.text('Mortgage', 140, y + 5.5);
+        doc.text('NBFC', 163, y + 5.5);
+        doc.text('Total', 185, y + 5.5);
+        y += 8;
+
+        let ipAlt = false;
+        for (const ip of inqProdArr) {
+            if (!ip.PRODUCT_TYPE) continue;
             if (y > 270) { doc.addPage(); y = 20; }
-            if (addrAlt) { doc.setFillColor(248, 250, 252); doc.rect(15, y, W - 30, 10, 'F'); }
-            doc.setTextColor(107, 114, 128);
-            doc.setFontSize(8);
+            if (ipAlt) { doc.setFillColor(248, 250, 252); doc.rect(15, y, W - 30, 7, 'F'); }
+            doc.setTextColor(55, 65, 81);
             doc.setFont('helvetica', 'normal');
-            const addrLine = [addr['@ADDRESS-LINE1'] || addr['@STREET'], addr['@CITY'] || addr['@TOWN'], addr['@STATE']].filter(Boolean).join(', ') || 'N/A';
-            doc.text('• ' + addrLine, 19, y + 5, { maxWidth: W - 38 });
-            if (addr['@DATE-REPORTED'] || addr['@DATE']) {
-                doc.setTextColor(156, 163, 175);
-                doc.setFontSize(7);
-                doc.text('Reported: ' + (addr['@DATE-REPORTED'] || addr['@DATE']), 19, y + 9);
-            }
-            y += 12;
-            addrAlt = !addrAlt;
+            doc.setFontSize(7.5);
+            const isBold = ip.PRODUCT_TYPE === 'Total';
+            doc.setFont('helvetica', isBold ? 'bold' : 'normal');
+            doc.text((ip.PRODUCT_TYPE || '').substring(0, 22), 19, y + 5);
+            doc.text((ip.BANK || '0').toString(), 80, y + 5);
+            doc.text((ip.MICRO || '0').toString(), 100, y + 5);
+            doc.text((ip.MORTGAGE || '0').toString(), 140, y + 5);
+            doc.text((ip.NBFC || '0').toString(), 163, y + 5);
+            doc.setTextColor(isBold ? 5 : 55, isBold ? 150 : 65, isBold ? 105 : 81);
+            doc.text((ip.TOTAL || '0').toString(), 185, y + 5);
+            doc.setTextColor(55, 65, 81);
+            y += 7;
+            ipAlt = !ipAlt;
         }
         y += 4;
     }
 
-    // Employment History
-    const employments = body?.EMPLOYMENTLIST || body?.EMPLOYMENT_HISTORY || [];
-    const employmentArr = Array.isArray(employments) ? employments : (employments ? [employments] : []);
-    const validEmployments = employmentArr.filter(e => e?.EMPLOYMENT || e?.EMPLOYMENTDETAIL);
-    if (validEmployments.length > 0) {
+    // Consumer Address (from ConsCommDetails)
+    const consComm = body?.ConsCommDetails?.ConsCommDetails_Subject;
+    if (consComm?.ADDRESS) {
+        if (y > 250) { doc.addPage(); y = 20; }
+        y += 4;
+        doc.setTextColor(31, 41, 55);
+        doc.setFontSize(10);
+        doc.setFont('helvetica', 'bold');
+        doc.text('Registered Address', 15, y);
+        y += 6;
+        doc.setFillColor(248, 250, 252);
+        doc.roundedRect(15, y, W - 30, 12, 2, 2, 'F');
+        doc.setTextColor(55, 65, 81);
+        doc.setFont('helvetica', 'normal');
+        doc.setFontSize(9);
+        doc.text(consComm.ADDRESS.trim(), 20, y + 8, { maxWidth: W - 40 });
+        y += 16;
+    }
+
+    // ID Documents on File
+    const idDocs = body?.ConsCommDetails?.ConsCommDetails_ID;
+    const idArr = Array.isArray(idDocs) ? idDocs : (idDocs ? [idDocs] : []);
+    const validIds = idArr.filter(d => d.IDENTIFIERNUMBER && d.IDENTIFIERNUMBER.trim() !== '.' && d.IDENTIFIERNUMBER.trim() !== '0' && d.IDENTIFIERNUMBER.trim() !== '' && !['NG','NI','1'].includes(d.IDENTIFIERNUMBER.trim()));
+    if (validIds.length > 0) {
+        if (y > 240) { doc.addPage(); y = 20; }
+        y += 4;
+        doc.setTextColor(31, 41, 55);
+        doc.setFontSize(10);
+        doc.setFont('helvetica', 'bold');
+        doc.text('Identity Documents on File', 15, y);
+        y += 6;
+
+        doc.setFillColor(31, 41, 55);
+        doc.rect(15, y, W - 30, 8, 'F');
+        doc.setTextColor(255, 255, 255);
+        doc.setFontSize(7.5);
+        doc.text('Document Type', 19, y + 5.5);
+        doc.text('Identifier Number', 110, y + 5.5);
+        y += 8;
+
+        let idAlt = false;
+        for (const id of validIds) {
+            if (y > 270) { doc.addPage(); y = 20; }
+            if (idAlt) { doc.setFillColor(248, 250, 252); doc.rect(15, y, W - 30, 7, 'F'); }
+            doc.setTextColor(55, 65, 81);
+            doc.setFont('helvetica', 'normal');
+            doc.setFontSize(8);
+            doc.text((id.ID_TYPE || 'N/A').substring(0, 40), 19, y + 5);
+            doc.text((id.IDENTIFIER_NUMBER || 'N/A'), 110, y + 5);
+            y += 7;
+            idAlt = !idAlt;
+        }
+        y += 4;
+    }
+
+    // Employment History (EmploymentHistory field)
+    const empHistory = body?.EmploymentHistory;
+    if (empHistory && empHistory !== null) {
         if (y > 240) { doc.addPage(); y = 20; }
         y += 4;
         doc.setTextColor(31, 41, 55);
@@ -335,32 +439,16 @@ async function generatePremiumPDF({ userName, score, searchId, crcData, aiAdvice
         doc.setFont('helvetica', 'bold');
         doc.text('Employment History', 15, y);
         y += 6;
-
-        doc.setFillColor(31, 41, 55);
-        doc.rect(15, y, W - 30, 8, 'F');
-        doc.setTextColor(255, 255, 255);
-        doc.setFontSize(7.5);
-        doc.text('Employer', 19, y + 5.5);
-        doc.text('Occupation', 90, y + 5.5);
-        doc.text('Income (₦)', 140, y + 5.5);
-        doc.text('Date', 175, y + 5.5);
-        y += 8;
-
-        let empAlt = false;
-        for (const item of validEmployments.slice(0, 5)) {
-            const emp = item.EMPLOYMENT || item.EMPLOYMENTDETAIL || {};
+        const empArr = Array.isArray(empHistory) ? empHistory : [empHistory];
+        for (const emp of empArr.slice(0, 5)) {
             if (y > 270) { doc.addPage(); y = 20; }
-            if (empAlt) { doc.setFillColor(248, 250, 252); doc.rect(15, y, W - 30, 7, 'F'); }
+            doc.setFillColor(248, 250, 252);
+            doc.roundedRect(15, y, W - 30, 10, 2, 2, 'F');
             doc.setTextColor(55, 65, 81);
             doc.setFont('helvetica', 'normal');
-            doc.setFontSize(7.5);
-            doc.text((emp['@EMPLOYER-NAME'] || emp['@EMPLOYER'] || 'N/A').substring(0, 30), 19, y + 5);
-            doc.text((emp['@OCCUPATION'] || emp['@JOB-TITLE'] || 'N/A').substring(0, 18), 90, y + 5);
-            const income = emp['@INCOME'] || emp['@MONTHLY-INCOME'] ? Number(String(emp['@INCOME'] || emp['@MONTHLY-INCOME']).replace(/,/g, '')).toLocaleString('en-NG') : 'N/A';
-            doc.text(income, 140, y + 5);
-            doc.text((emp['@DATE-REPORTED'] || emp['@START-DATE'] || 'N/A'), 175, y + 5);
-            y += 7;
-            empAlt = !empAlt;
+            doc.setFontSize(8.5);
+            doc.text(String(emp).substring(0, 80), 20, y + 7, { maxWidth: W - 40 });
+            y += 13;
         }
         y += 4;
     }
