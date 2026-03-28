@@ -45,7 +45,7 @@ Deno.serve(async (req) => {
       return Response.json({ success: false, error: 'QoreID not configured' }, { status: 500 });
     }
 
-    const qoreIdResponse = await fetch('https://api.qoreid.com/api/v1/verification/verify_bvn', {
+    const qoreResponse = await fetch('https://api.qore.inc/api/v1/bvn/details', {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${qoreIdKey}`,
@@ -54,21 +54,21 @@ Deno.serve(async (req) => {
       body: JSON.stringify({ bvn: bvn })
     });
 
-    const qoreIdData = await qoreIdResponse.json();
+    const qoreData = await qoreResponse.json();
 
-    if (!qoreIdData.success) {
+    if (!qoreData.RequestStatus) {
       return Response.json({ 
         success: false, 
-        error: qoreIdData.message || 'BVN verification failed with provider'
+        error: qoreData.ResponseMessage || 'BVN verification failed with provider'
       }, { status: 400 });
     }
 
-    const bvnData = qoreIdData.data || {};
-    const bvnFullName = (bvnData.name || '').trim();
-    const bvnPhone = bvnData.phone_number || '';
-    const bvnEmail = bvnData.email || '';
-    const bvnDob = bvnData.date_of_birth || '';
-    const bvnGender = bvnData.gender?.toLowerCase() || '';
+    const bvnDetails = qoreData.bvnDetails || {};
+    const bvnFullName = `${bvnDetails.FirstName || ''} ${bvnDetails.OtherNames || ''} ${bvnDetails.LastName || ''}`.trim();
+    const bvnPhone = bvnDetails.phoneNumber || '';
+    const bvnEmail = bvnDetails.email || '';
+    const bvnDob = bvnDetails.DOB || '';
+    const bvnGender = '';
 
     // Check name matches (2 of 3 required)
     let nameMatchCount = 0;

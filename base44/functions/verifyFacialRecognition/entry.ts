@@ -34,7 +34,7 @@ Deno.serve(async (req) => {
     }
 
     // QoreID facial matching endpoint
-    const facialResponse = await fetch('https://api.qoreid.com/api/v1/verification/verify_bvn_with_face', {
+    const facialResponse = await fetch('https://api.qore.inc/api/v1/kyc/bvn/face-verification', {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${qoreIdKey}`,
@@ -42,22 +42,22 @@ Deno.serve(async (req) => {
       },
       body: JSON.stringify({
         bvn: kyc.bvn,
-        selfie_image_url: selfie_image_url
+        image_url: selfie_image_url
       })
     });
 
     const facialData = await facialResponse.json();
 
-    if (!facialData.success) {
+    if (!facialData.RequestStatus) {
       return Response.json({
         success: false,
-        error: facialData.message || 'Facial recognition failed. Please ensure good lighting and clear visibility of your face.',
+        error: facialData.ResponseMessage || 'Facial recognition failed. Please ensure good lighting and clear visibility of your face.',
         code: 'FACIAL_MATCH_FAILED'
       }, { status: 400 });
     }
 
     // Check match confidence
-    const matchScore = facialData.data?.match_score || 0;
+    const matchScore = facialData.matchScore || 0;
     const isMatch = matchScore >= 0.8; // 80% confidence threshold
 
     if (!isMatch) {
