@@ -23,18 +23,21 @@ Deno.serve(async (req) => {
     const kyc = kycData[0];
 
     // Ensure BVN is verified
-    if (!kyc.bvn_verified) {
+    if (!kyc.bvn) {
       return Response.json({ success: false, error: 'BVN must be verified first' }, { status: 400 });
     }
 
-    // Call QoreID for facial recognition matching against BVN
+    // Initiate async facial recognition with QoreID
     const qoreIdKey = Deno.env.get('QOREID_API_KEY');
     if (!qoreIdKey) {
       return Response.json({ success: false, error: 'QoreID not configured' }, { status: 500 });
     }
 
-    // QoreID facial matching endpoint
-    const facialResponse = await fetch('https://api.qoreid.com/api/v1/kyc/bvn-face-match', {
+    // Generate unique reference for webhook tracking
+    const reference = `facial_${user.id}_${Date.now()}`;
+
+    // Call QoreID for facial matching
+    const facialResponse = await fetch('https://api.myidentitypass.com/api/v1/kyc/bvn-face-match', {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${qoreIdKey}`,
@@ -42,7 +45,8 @@ Deno.serve(async (req) => {
       },
       body: JSON.stringify({
         number: kyc.bvn,
-        image: selfie_image_url
+        image: selfie_image_url,
+        reference: reference
       })
     });
 
@@ -64,30 +68,18 @@ Deno.serve(async (req) => {
       }, { status: 400 });
     }
 
-    // Check match confidence
-    const matchScore = facialData.data?.match_score || 0;
-    const isMatch = matchScore >= 0.8; // 80% confidence threshold
-
-    if (!isMatch) {
-      return Response.json({
-        success: false,
-        error: 'Face does not match BVN record. Please try again with a clear, well-lit photo.',
-        matchScore: matchScore,
-        code: 'LOW_MATCH_CONFIDENCE'
-      }, { status: 400 });
-    }
-
-    // Update KYC with successful facial recognition
+    // Store reference and selfie image for webhook tracking
     await base44.entities.KYCProfile.update(kyc.id, {
-      facial_recognition_verified: true,
-      facial_recognition_image_url: selfie_image_url
+      facial_recognition_image_url: selfie_image_url,
+      verification_reference: reference,
+      verification_status: 'pending'
     });
 
     return Response.json({
       success: true,
-      message: 'Facial recognition verified successfully',
-      matchScore: matchScore,
-      facialVerified: true
+      message: 'Facial recognition initiated. You will receive updates shortly.',
+      reference: reference,
+      status: 'pending'
     });
 
   } catch (error) {

@@ -159,6 +159,23 @@
     "otp_email_target": {
       "type": "string",
       "description": "Target email address"
+    },
+    "verification_reference": {
+      "type": "string",
+      "description": "QoreID webhook reference for async verification tracking"
+    },
+    "verification_status": {
+      "type": "string",
+      "enum": [
+        "pending",
+        "completed",
+        "failed"
+      ],
+      "description": "Status of async verification"
+    },
+    "verification_error": {
+      "type": "string",
+      "description": "Error message from verification provider"
     }
   },
   "required": [
