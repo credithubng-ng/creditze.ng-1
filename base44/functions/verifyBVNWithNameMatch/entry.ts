@@ -1,5 +1,56 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.23';
 
+const QOREID_BASE_URL = Deno.env.get("QOREID_BASE_URL") || "https://api.qoreid.com";
+
+async function getQoreIdToken() {
+  const response = await fetch(`${QOREID_BASE_URL}/token`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "Accept": "application/json"
+    },
+    body: JSON.stringify({
+      clientId: Deno.env.get("QOREID_CLIENT_ID"),
+      secret: Deno.env.get("QOREID_SECRET")
+    })
+  });
+
+  const data = await response.json().catch(() => ({}));
+
+  if (!response.ok) {
+    throw new Error(`QoreID token error: ${response.status} ${JSON.stringify(data)}`);
+  }
+
+  if (!data.accessToken) {
+    throw new Error("QoreID token missing accessToken");
+  }
+
+  return data.accessToken;
+}
+
+async function qoreIdRequest(endpoint, options = {}) {
+  const token = await getQoreIdToken();
+
+  const response = await fetch(`${QOREID_BASE_URL}${endpoint}`, {
+    method: options.method || "POST",
+    headers: {
+      "Authorization": `Bearer ${token}`,
+      "Content-Type": "application/json",
+      "Accept": "application/json",
+      ...(options.headers || {})
+    },
+    body: options.body ? JSON.stringify(options.body) : undefined
+  });
+
+  const data = await response.json().catch(() => ({}));
+
+  if (!response.ok) {
+    throw new Error(`QoreID API error: ${response.status} ${JSON.stringify(data)}`);
+  }
+
+  return data;
+}
+
 Deno.serve(async (req) => {
   try {
     const base44 = createClientFromRequest(req);
@@ -22,78 +73,27 @@ Deno.serve(async (req) => {
     }
     const kyc = kycData[0];
 
-    // Verify BVN directly with QoreID
-    const qoreIdKey = Deno.env.get('QOREID_API_KEY');
-    if (!qoreIdKey) {
-      return Response.json({ success: false, error: 'QoreID not configured' }, { status: 500 });
-    }
-
-    // Get access token
-    const tokenResponse = await fetch('https://api.qoreid.com/token', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({
-        api_key: qoreIdKey
-      })
+    // Verify BVN with QoreID
+    const qoreData = await qoreIdRequest(`/v1/ng/identities/bvn-basic/${encodeURIComponent(bvn)}`, {
+      method: "POST"
     });
 
-    if (!tokenResponse.ok) {
-      return Response.json({ success: false, error: 'Failed to authenticate with QoreID' }, { status: 400 });
-    }
-
-    const tokenData = await tokenResponse.json();
-    const accessToken = tokenData.access_token || tokenData.token;
-
-    if (!accessToken) {
-      return Response.json({ success: false, error: 'Failed to obtain access token' }, { status: 400 });
-    }
-
-    const qoreResponse = await fetch('https://api.qoreid.com/api/v1/kyc/bvn', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${accessToken}`,
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({
-        number: bvn
-      })
-    });
-
-    if (!qoreResponse.ok) {
-      return Response.json({ 
-        success: false, 
-        error: `QoreID API error: ${qoreResponse.statusText}`
-      }, { status: 400 });
-    }
-
-    const qoreData = await qoreResponse.json();
-
-    if (!qoreData.success) {
-      return Response.json({ 
-        success: false, 
-        error: qoreData.message || 'BVN verification failed'
-      }, { status: 400 });
-    }
-
-    // Update KYC with verified BVN data
-    const data = qoreData.data || {};
+    const data = qoreData.data || qoreData || {};
     await base44.entities.KYCProfile.update(kyc.id, {
       bvn: bvn,
       bvn_verified: true,
-      bvn_full_name: data.full_name || '',
-      bvn_phone_number: data.phone_number || '',
-      bvn_date_of_birth: data.date_of_birth || '',
+      bvn_full_name: data.firstName ? `${data.firstName} ${data.lastName || ''}`.trim() : data.full_name || '',
+      bvn_phone_number: data.phoneNumber || data.phone_number || '',
+      bvn_date_of_birth: data.dateOfBirth || data.date_of_birth || '',
       bvn_gender: (data.gender || '').toLowerCase()
     });
 
     return Response.json({
       success: true,
       data: {
-        full_name: data.full_name,
-        phone_number: data.phone_number,
-        date_of_birth: data.date_of_birth,
+        full_name: data.firstName ? `${data.firstName} ${data.lastName || ''}`.trim() : data.full_name,
+        phone_number: data.phoneNumber || data.phone_number,
+        date_of_birth: data.dateOfBirth || data.date_of_birth,
         gender: data.gender
       }
     });

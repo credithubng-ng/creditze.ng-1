@@ -1,5 +1,56 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.23';
 
+const QOREID_BASE_URL = Deno.env.get("QOREID_BASE_URL") || "https://api.qoreid.com";
+
+async function getQoreIdToken() {
+  const response = await fetch(`${QOREID_BASE_URL}/token`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "Accept": "application/json"
+    },
+    body: JSON.stringify({
+      clientId: Deno.env.get("QOREID_CLIENT_ID"),
+      secret: Deno.env.get("QOREID_SECRET")
+    })
+  });
+
+  const data = await response.json().catch(() => ({}));
+
+  if (!response.ok) {
+    throw new Error(`QoreID token error: ${response.status} ${JSON.stringify(data)}`);
+  }
+
+  if (!data.accessToken) {
+    throw new Error("QoreID token missing accessToken");
+  }
+
+  return data.accessToken;
+}
+
+async function qoreIdRequest(endpoint, options = {}) {
+  const token = await getQoreIdToken();
+
+  const response = await fetch(`${QOREID_BASE_URL}${endpoint}`, {
+    method: options.method || "POST",
+    headers: {
+      "Authorization": `Bearer ${token}`,
+      "Content-Type": "application/json",
+      "Accept": "application/json",
+      ...(options.headers || {})
+    },
+    body: options.body ? JSON.stringify(options.body) : undefined
+  });
+
+  const data = await response.json().catch(() => ({}));
+
+  if (!response.ok) {
+    throw new Error(`QoreID API error: ${response.status} ${JSON.stringify(data)}`);
+  }
+
+  return data;
+}
+
 Deno.serve(async (req) => {
   try {
     const base44 = createClientFromRequest(req);
@@ -22,66 +73,19 @@ Deno.serve(async (req) => {
     }
     const kyc = kycData[0];
 
-    // Ensure BVN is verified
-    if (!kyc.bvn_verified) {
-      return Response.json({ success: false, error: 'BVN must be verified first' }, { status: 400 });
+    // Ensure NIN is verified or available
+    if (!kyc.nin) {
+      return Response.json({ success: false, error: 'NIN must be verified first' }, { status: 400 });
     }
 
     // Verify facial recognition with QoreID
-    const qoreIdKey = Deno.env.get('QOREID_API_KEY');
-    if (!qoreIdKey) {
-      return Response.json({ success: false, error: 'QoreID not configured' }, { status: 500 });
-    }
-
-    // Get access token
-    const tokenResponse = await fetch('https://api.qoreid.com/token', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({
-        api_key: qoreIdKey
-      })
+    const facialData = await qoreIdRequest(`/v1/ng/identities/face-verification/nin`, {
+      method: "POST",
+      body: {
+        idNumber: kyc.nin,
+        selfieImage: selfie_image_url
+      }
     });
-
-    if (!tokenResponse.ok) {
-      return Response.json({ success: false, error: 'Failed to authenticate with QoreID' }, { status: 400 });
-    }
-
-    const tokenData = await tokenResponse.json();
-    const accessToken = tokenData.access_token || tokenData.token;
-
-    if (!accessToken) {
-      return Response.json({ success: false, error: 'Failed to obtain access token' }, { status: 400 });
-    }
-
-    const facialResponse = await fetch('https://api.qoreid.com/api/v1/kyc/bvn-face-match', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${accessToken}`,
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({
-        number: kyc.bvn,
-        image: selfie_image_url
-      })
-    });
-
-    if (!facialResponse.ok) {
-      return Response.json({
-        success: false,
-        error: 'Facial recognition service unavailable'
-      }, { status: 500 });
-    }
-
-    const facialData = await facialResponse.json();
-
-    if (!facialData.success) {
-      return Response.json({
-        success: false,
-        error: facialData.message || 'Facial recognition failed. Please ensure good lighting and clear visibility.'
-      }, { status: 400 });
-    }
 
     // Update KYC with facial recognition result
     await base44.entities.KYCProfile.update(kyc.id, {
@@ -91,7 +95,8 @@ Deno.serve(async (req) => {
 
     return Response.json({
       success: true,
-      message: 'Facial recognition verified successfully'
+      message: 'Facial recognition verified successfully',
+      data: facialData
     });
 
   } catch (error) {
