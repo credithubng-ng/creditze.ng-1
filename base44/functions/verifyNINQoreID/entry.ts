@@ -52,9 +52,21 @@ Deno.serve(async (req) => {
     });
 
     const tokenData = await tokenResponse.json();
+    console.log('Token response status:', tokenResponse.status, 'hasToken:', !!tokenData.accessToken);
     if (!tokenData.accessToken) {
+      console.log('Token error:', JSON.stringify(tokenData));
       throw new Error('Failed to get access token');
     }
+
+    const requestBody = {
+      firstname: firstname,
+      lastname: lastname,
+      ...(middlename && { middlename }),
+      ...(kyc.date_of_birth && { dob: kyc.date_of_birth }),
+      ...(kyc.phone_number && { phone: kyc.phone_number }),
+      ...(kyc.gender && { gender: kyc.gender })
+    };
+    console.log('Calling NIN endpoint for nin:', nin, 'body:', JSON.stringify(requestBody));
 
     // Call QoreID NIN verification
     const response = await fetch(`https://api.qoreid.com/v1/ng/identities/nin/${nin}`, {
@@ -63,17 +75,11 @@ Deno.serve(async (req) => {
         'Authorization': `Bearer ${tokenData.accessToken}`,
         'Content-Type': 'application/json'
       },
-      body: JSON.stringify({
-        firstname: firstname,
-        lastname: lastname,
-        middlename: middlename || undefined,
-        dob: kyc.date_of_birth || undefined,
-        phone: kyc.phone_number || undefined,
-        gender: kyc.gender || undefined
-      })
+      body: JSON.stringify(requestBody)
     });
 
     const qoreIdData = await response.json();
+    console.log('NIN response status:', response.status, 'body:', JSON.stringify(qoreIdData));
 
     if (!response.ok || qoreIdData.status !== 'success') {
       return Response.json({
