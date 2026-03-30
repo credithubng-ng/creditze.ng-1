@@ -58,38 +58,59 @@ Deno.serve(async (req) => {
     });
 
     const tokenData = await tokenResponse.json();
+    console.log('QoreID token response status:', tokenResponse.status, 'has token:', !!tokenData.accessToken);
     if (!tokenData.accessToken) {
-      throw new Error('Failed to get access token');
+      throw new Error('Failed to get access token: ' + JSON.stringify(tokenData));
     }
 
-    // Call QoreID BVN verification (basic endpoint)
-    const qoreIdResponse = await fetch(`https://api.qoreid.com/v1/ng/identities/bvn/${bvn}`, {
+    // Parse user's name for firstname/lastname
+    const userFullName = kyc.full_name || user.full_name || '';
+    const nameParts = userFullName.trim().split(/\s+/);
+    const firstname = nameParts[0] || '';
+    const lastname = nameParts[nameParts.length - 1] || nameParts[0] || '';
+
+    console.log(`Calling bvn-basic for BVN: ${bvn.slice(0,4)}**** with name: ${firstname} ${lastname}`);
+
+    // Call QoreID BVN basic verification endpoint
+    const qoreIdResponse = await fetch(`https://api.qoreid.com/v1/ng/identities/bvn-basic/${bvn}`, {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${tokenData.accessToken}`,
-        'Content-Type': 'application/json'
-      }
+        'Content-Type': 'application/json',
+        'accept': 'application/json'
+      },
+      body: JSON.stringify({ firstname, lastname })
     });
 
     const qoreIdData = await qoreIdResponse.json();
+    console.log('QoreID BVN response:', JSON.stringify(qoreIdData));
 
-    if (!qoreIdResponse.ok || qoreIdData.status !== 'success') {
-      return Response.json({ 
-        success: false, 
-        error: qoreIdData.message || 'BVN verification failed with provider'
+    if (!qoreIdResponse.ok) {
+      console.log('QoreID error response:', JSON.stringify(qoreIdData), 'HTTP status:', qoreIdResponse.status);
+      const errMsg = qoreIdResponse.status === 403
+        ? 'BVN verification service is not enabled on this account. Please contact support.'
+        : (qoreIdData.message || qoreIdData.error || 'BVN verification failed with provider');
+      return Response.json({ success: false, error: errMsg }, { status: 400 });
+    }
+
+    // Check verification status
+    const bvnStatus = qoreIdData.status?.status;
+    if (bvnStatus && bvnStatus !== 'verified' && bvnStatus !== 'found') {
+      return Response.json({
+        success: false,
+        error: 'BVN not found or could not be verified. Please check your BVN and try again.'
       }, { status: 400 });
     }
 
-    const bvnData = qoreIdData.data || {};
-    const bvnFullName = (bvnData.name || '').trim();
-    const bvnPhone = bvnData.phone_number || '';
-    const bvnEmail = bvnData.email || '';
-    const bvnDob = bvnData.date_of_birth || '';
-    const bvnGender = bvnData.gender?.toLowerCase() || '';
+    const bvnRecord = qoreIdData.bvn || {};
+    const bvnFullName = [bvnRecord.firstname, bvnRecord.middlename, bvnRecord.lastname].filter(Boolean).join(' ').trim();
+    const bvnPhone = bvnRecord.phone || '';
+    const bvnEmail = bvnRecord.email || '';
+    const bvnDob = bvnRecord.birthdate || '';
+    const bvnGender = bvnRecord.gender?.toLowerCase() || '';
 
     // Check name matches (2 of 3 required)
     let nameMatchCount = 0;
-    const userFullName = kyc.full_name || user.full_name || '';
     
     // Match 1: Full name vs BVN full name
     if (normalizeAndMatchName(userFullName, bvnFullName)) {
