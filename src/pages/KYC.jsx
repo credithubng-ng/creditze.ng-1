@@ -7,7 +7,6 @@ import {
   Phone, 
   CreditCard, 
   MapPin, 
-  Building, 
   Banknote,
   ArrowLeft,
   ArrowRight,
@@ -15,7 +14,6 @@ import {
   Loader2,
   AlertCircle,
   User as UserIcon,
-  Calendar,
   TrendingUp
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -32,7 +30,6 @@ const STEPS = [
   { id: 'phone', title: 'Phone', icon: Phone },
   { id: 'credit', title: 'Credit Score', icon: TrendingUp },
   { id: 'bvn', title: 'BVN', icon: CreditCard },
-  { id: 'nin', title: 'NIN', icon: CreditCard },
   { id: 'address', title: 'Address', icon: MapPin },
   { id: 'bank', title: 'Bank', icon: Banknote }
 ];
@@ -61,7 +58,6 @@ export default function KYC() {
     gender: '',
     phone_number: '',
     bvn: '',
-    nin: '',
     residential_address: '',
     city: '',
     residential_state: '',
@@ -94,8 +90,8 @@ export default function KYC() {
         // Find the first incomplete step
         if (!kycData[0].full_name || !kycData[0].date_of_birth || !kycData[0].gender) setCurrentStep(0);
         else if (!kycData[0].phone_verified) setCurrentStep(1);
-        else if (!kycData[0].bvn) setCurrentStep(2); // Credit search (BVN lookup)
-        else if (!kycData[0].nin_verified) setCurrentStep(3);
+        else if (!kycData[0].bvn) setCurrentStep(2); // Credit search
+        else if (!kycData[0].bvn_verified) setCurrentStep(3); // BVN
         else if (!kycData[0].residential_address || !kycData[0].property_type) setCurrentStep(4);
         else if (!kycData[0].account_number) setCurrentStep(5);
         else {
@@ -317,7 +313,7 @@ export default function KYC() {
 
       // OTP sent to BVN email, move to OTP verification
       setOtpSent(true);
-      setCurrentStep('bvn-otp');
+      setCurrentStep('bvn-otp'); // handled separately
       setError(null);
     } catch (err) {
       setError(err.message || 'BVN verification failed. Please check and try again.');
@@ -337,58 +333,10 @@ export default function KYC() {
         bvn: formData.bvn,
         bvn_verified: false
       });
-      setCurrentStep(3); // Move to NIN
+      setCurrentStep(4); // Move to address
       setError(null);
     } catch (err) {
       setError('Failed to save BVN. Please try again.');
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  const verifyNIN = async () => {
-    if (!formData.nin || formData.nin.length !== 11) {
-      setError('NIN must be 11 digits');
-      return;
-    }
-    setSaving(true);
-    try {
-      const response = await base44.functions.invoke('verifyNINQoreID', {
-        nin: formData.nin
-      });
-
-      if (!response.data.success) {
-        throw new Error(response.data.error || 'NIN verification failed');
-      }
-
-      await base44.entities.KYCProfile.update(kyc.id, {
-        nin: formData.nin,
-        nin_verified: true
-      });
-      setCurrentStep(4); // Move to address
-      setError(null);
-    } catch (err) {
-      setError(err.message || 'NIN verification failed. Please check and try again.');
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  const skipNIN = async () => {
-    if (!formData.nin || formData.nin.length !== 11) {
-      setError('Please enter your 11-digit NIN before continuing');
-      return;
-    }
-    setSaving(true);
-    try {
-      await base44.entities.KYCProfile.update(kyc.id, {
-        nin: formData.nin,
-        nin_verified: false
-      });
-      setCurrentStep(4); // Move to address
-      setError(null);
-    } catch (err) {
-      setError('Failed to save NIN. Please try again.');
     } finally {
       setSaving(false);
     }
@@ -413,7 +361,7 @@ export default function KYC() {
           property_type: formData.property_type,
           property_years: parseInt(formData.property_years) || 0
         });
-        setCurrentStep(5); // Move to bank
+        setCurrentStep(5); // Move to bank (step 5)
         setError(null);
       } catch (err) {
         setError('Failed to save address. Please try again.');
@@ -715,6 +663,52 @@ export default function KYC() {
                </Card>
              )}
 
+            {/* BVN OTP - Step after verifyBVN */}
+            {currentStep === 'bvn-otp' && (
+              <Card className="border-0 shadow-md">
+                <CardHeader>
+                  <div className="w-14 h-14 bg-emerald-100 rounded-2xl flex items-center justify-center mb-4">
+                    <CreditCard className="w-7 h-7 text-emerald-600" />
+                  </div>
+                  <CardTitle>Verify BVN Email OTP</CardTitle>
+                  <CardDescription>Enter the 6-digit code sent to your BVN email address</CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="text-center">
+                    <InputOTP maxLength={6} value={otp} onChange={setOtp}>
+                      <InputOTPGroup className="gap-2 justify-center">
+                        {[0,1,2,3,4,5].map(i => (
+                          <InputOTPSlot key={i} index={i} className="w-12 h-12 text-lg" />
+                        ))}
+                      </InputOTPGroup>
+                    </InputOTP>
+                  </div>
+                  <Button
+                    className="w-full bg-emerald-600 hover:bg-emerald-700"
+                    onClick={async () => {
+                      if (otp.length !== 6) { setError('Please enter the 6-digit OTP'); return; }
+                      setSaving(true);
+                      try {
+                        const res = await base44.functions.invoke('verifyBVNEmailOTP', { otp });
+                        if (!res.data.success) throw new Error(res.data.error || 'Invalid OTP');
+                        setCurrentStep(4); // Move to address
+                        setError(null);
+                      } catch (err) {
+                        setError(err.message || 'OTP verification failed');
+                      } finally { setSaving(false); }
+                    }}
+                    disabled={saving}
+                  >
+                    {saving ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
+                    Verify OTP <ArrowRight className="ml-2 w-4 h-4" />
+                  </Button>
+                  <Button variant="outline" className="w-full" onClick={() => setCurrentStep(3)}>
+                    Back
+                  </Button>
+                </CardContent>
+              </Card>
+            )}
+
             {/* BVN Verification - Step 3 */}
              {currentStep === 3 && (
               <Card className="border-0 shadow-md">
@@ -758,51 +752,8 @@ export default function KYC() {
               </Card>
             )}
 
-            {/* NIN Verification - Step 4 */}
+            {/* Address & Property - Step 4 */}
              {currentStep === 4 && (
-              <Card className="border-0 shadow-md">
-                <CardHeader>
-                  <div className="w-14 h-14 bg-emerald-100 rounded-2xl flex items-center justify-center mb-4">
-                    <CreditCard className="w-7 h-7 text-emerald-600" />
-                  </div>
-                  <CardTitle>NIN Verification</CardTitle>
-                  <CardDescription>Enter your 11-digit National Identification Number</CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <div>
-                    <Label>NIN</Label>
-                    <Input
-                      type="text"
-                      placeholder="12345678901"
-                      value={formData.nin}
-                      onChange={(e) => handleChange('nin', e.target.value.replace(/\D/g, '').slice(0, 11))}
-                      className="mt-1 text-lg tracking-wider"
-                    />
-                    <p className="text-xs text-gray-500 mt-1">Dial *346# on any phone to retrieve your NIN</p>
-                  </div>
-                  <Button 
-                    className="w-full bg-emerald-600 hover:bg-emerald-700"
-                    onClick={verifyNIN}
-                    disabled={saving}
-                  >
-                    {saving ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
-                    Verify NIN <ArrowRight className="ml-2 w-4 h-4" />
-                  </Button>
-                  <Button
-                    variant="outline"
-                    className="w-full border-amber-300 text-amber-700 hover:bg-amber-50"
-                    onClick={skipNIN}
-                    disabled={saving}
-                  >
-                    {saving ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
-                    Continue Without NIN Verification
-                  </Button>
-                </CardContent>
-              </Card>
-            )}
-
-            {/* Address & Property - Step 5 */}
-             {currentStep === 5 && (
               <Card className="border-0 shadow-md">
                 <CardHeader>
                   <div className="w-14 h-14 bg-emerald-100 rounded-2xl flex items-center justify-center mb-4">
@@ -906,8 +857,8 @@ export default function KYC() {
               </Card>
             )}
 
-            {/* Bank Details - Step 6 */}
-             {currentStep === 6 && (
+            {/* Bank Details - Step 5 */}
+             {currentStep === 5 && (
               <Card className="border-0 shadow-md">
                 <CardHeader>
                   <div className="w-14 h-14 bg-emerald-100 rounded-2xl flex items-center justify-center mb-4">

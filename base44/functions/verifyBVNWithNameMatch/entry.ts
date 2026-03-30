@@ -62,8 +62,8 @@ Deno.serve(async (req) => {
       throw new Error('Failed to get access token');
     }
 
-    // Call QoreID BVN verification (premium endpoint for full data)
-    const qoreIdResponse = await fetch(`https://api.qoreid.com/v1/ng/identities/bvn-premium/${bvn}`, {
+    // Call QoreID BVN verification (basic endpoint)
+    const qoreIdResponse = await fetch(`https://api.qoreid.com/v1/ng/identities/bvn/${bvn}`, {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${tokenData.accessToken}`,
