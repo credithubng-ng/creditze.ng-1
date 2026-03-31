@@ -1,5 +1,45 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.23';
 
+// Module-level token cache (persists for the lifetime of the Deno isolate)
+let cachedToken = null;
+let tokenExpireAt = 0;
+
+async function getQoreIDToken() {
+  const currentTime = Math.floor(Date.now() / 1000);
+
+  if (cachedToken && currentTime < tokenExpireAt) {
+    console.log('Using cached QoreID token');
+    return cachedToken;
+  }
+
+  console.log('Fetching new QoreID token...');
+  const clientId = Deno.env.get('QOREID_CLIENT_ID');
+  const secret = Deno.env.get('QOREID_SECRET');
+
+  if (!clientId || !secret) {
+    throw new Error('QoreID credentials not configured');
+  }
+
+  const tokenResponse = await fetch('https://api.qoreid.com/token', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ clientId, secret })
+  });
+
+  if (!tokenResponse.ok) {
+    const err = await tokenResponse.text();
+    throw new Error(`QoreID token fetch failed: ${err}`);
+  }
+
+  const tokenData = await tokenResponse.json();
+  cachedToken = tokenData.accessToken;
+  // expiresIn is in seconds; subtract 60s buffer
+  tokenExpireAt = currentTime + (tokenData.expiresIn || 7200) - 60;
+
+  console.log(`New QoreID token obtained, expires in ${tokenData.expiresIn}s`);
+  return cachedToken;
+}
+
 // Simple name matching: check if names are similar (handles variations)
 function normalizeAndMatchName(name1, name2) {
   if (!name1 || !name2) return false;
@@ -39,13 +79,17 @@ Deno.serve(async (req) => {
     }
     const kyc = kycData[0];
 
-    // Get QoreID API key (direct bearer token)
-    const apiKey = Deno.env.get('QOREID_API_KEY');
-    if (!apiKey) {
-      return Response.json({ success: false, error: 'QoreID not configured' }, { status: 500 });
+    // Get QoreID access token (auto-refreshes every 2 hours, falls back to API key)
+    let accessToken;
+    try {
+      accessToken = await getQoreIDToken();
+    } catch (tokenErr) {
+      console.warn('Token fetch failed, falling back to API key:', tokenErr.message);
+      accessToken = Deno.env.get('QOREID_API_KEY');
+      if (!accessToken) {
+        return Response.json({ success: false, error: 'QoreID not configured' }, { status: 500 });
+      }
     }
-
-    const accessToken = apiKey;
 
     // Parse user's name for firstname/lastname (payload overrides KYC for testing)
     const userFullName = kyc.full_name || user.full_name || '';
