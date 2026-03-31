@@ -143,8 +143,8 @@ Deno.serve(async (req) => {
     const userParts = userFullName.trim().toLowerCase().split(/\s+/).filter(Boolean);
     const bvnParts = bvnFullName.trim().toLowerCase().split(/\s+/).filter(Boolean);
 
-    // A user part matches a BVN part if: exact match OR one ends with the other (handles nicknames like "Deji" → "Adedeji")
-    const partMatches = (uPart, bPart) => uPart === bPart || bPart.endsWith(uPart) || uPart.endsWith(bPart);
+    // A user part matches a BVN part only on exact match (no short forms or nicknames)
+    const partMatches = (uPart, bPart) => uPart === bPart;
     const matchedParts = userParts.filter(uPart => bvnParts.some(bPart => partMatches(uPart, bPart)));
     const nameMatchCount = matchedParts.length;
 
