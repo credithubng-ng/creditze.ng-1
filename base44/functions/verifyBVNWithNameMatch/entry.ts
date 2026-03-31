@@ -39,29 +39,13 @@ Deno.serve(async (req) => {
     }
     const kyc = kycData[0];
 
-    // Get QoreID access token
-    const clientId = Deno.env.get('QOREID_CLIENT_ID');
-    const clientSecret = Deno.env.get('QOREID_SECRET');
-    if (!clientId || !clientSecret) {
+    // Get QoreID API key (direct bearer token)
+    const apiKey = Deno.env.get('QOREID_API_KEY');
+    if (!apiKey) {
       return Response.json({ success: false, error: 'QoreID not configured' }, { status: 500 });
     }
 
-    const tokenResponse = await fetch('https://api.qoreid.com/token', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({
-        clientId: clientId,
-        secret: clientSecret
-      })
-    });
-
-    const tokenData = await tokenResponse.json();
-    console.log('QoreID token response status:', tokenResponse.status, 'has token:', !!tokenData.accessToken);
-    if (!tokenData.accessToken) {
-      throw new Error('Failed to get access token: ' + JSON.stringify(tokenData));
-    }
+    const accessToken = apiKey;
 
     // Parse user's name for firstname/lastname
     const userFullName = kyc.full_name || user.full_name || '';
@@ -75,7 +59,7 @@ Deno.serve(async (req) => {
     const qoreIdResponse = await fetch(`https://api.qoreid.com/v1/ng/identities/bvn-basic/${bvn}`, {
       method: 'POST',
       headers: {
-        'Authorization': `Bearer ${tokenData.accessToken}`,
+        'Authorization': `Bearer ${accessToken}`,
         'Content-Type': 'application/json',
         'accept': 'application/json'
       },
