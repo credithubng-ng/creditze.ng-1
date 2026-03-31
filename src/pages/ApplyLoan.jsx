@@ -127,11 +127,6 @@ export default function ApplyLoan() {
       ruleScore += Math.floor(successRate * 20);
     }
 
-    // Property stability (15 points)
-    if (kyc?.property_years >= 3) ruleScore += 15;
-    else if (kyc?.property_years >= 1) ruleScore += 10;
-    else ruleScore += 5;
-
     // Identity consistency (15 points)
     if (kyc?.bvn_verified && kyc?.nin_verified) ruleScore += 15;
     else if (kyc?.bvn_verified || kyc?.nin_verified) ruleScore += 8;
@@ -356,7 +351,6 @@ export default function ApplyLoan() {
         score_breakdown: {
           bureau: creditSearch?.bureau_score,
           repayment_history: creditLimit?.successful_repayments || 0,
-          property_years: kyc?.property_years,
           employment_verified: !!employmentVerification,
           ml_score: mlScoreResult?.ml_score,
           ml_breakdown: mlScoreResult?.ml_score_breakdown,

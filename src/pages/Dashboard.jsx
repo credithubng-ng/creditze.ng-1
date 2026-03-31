@@ -86,7 +86,7 @@ export default function Dashboard() {
     if (kyc.phone_verified) progress += 20;
     if (kyc.bvn_verified) progress += 25;
     if (kyc.nin_verified) progress += 25;
-    if (kyc.residential_address && kyc.property_type) progress += 30;
+    if (kyc.residential_address) progress += 30;
     return progress;
   };
 
@@ -283,11 +283,11 @@ export default function Dashboard() {
                 <div className="space-y-2 mb-4">
                   {[
                     { label: 'Phone Verification', done: kyc?.phone_verified, warning: kyc?.phone_number && !kyc?.phone_verified },
+                    { label: 'Pay ₦850 Credit Search', done: !!creditSearch && creditSearch.payment_status === 'paid' },
                     { label: 'BVN Verification', done: kyc?.bvn_verified },
                     { label: 'NIN Verification', done: kyc?.nin_verified },
                     { label: 'Liveness Check', done: kyc?.facial_recognition_verified },
-                    { label: 'Address Details', done: kyc?.residential_address },
-                    { label: 'Property Details', done: kyc?.property_type }
+                    { label: 'Address Details', done: kyc?.residential_address }
                   ].map((item, i) => (
                     <div key={i} className="flex items-center gap-2 text-sm">
                       {item.done ? (

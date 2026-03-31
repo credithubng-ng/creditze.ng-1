@@ -27,11 +27,12 @@ import { STATES, getLGAsForState } from '@/components/utils/nigeriaStatesLgas';
 import NINStep from '@/components/kyc/NINStep';
 import LivenessStep from '@/components/kyc/LivenessStep';
 
-// Steps: 0=Personal, 1=Phone, 2=Credit, 3=BVN, 4=NIN, 5=Liveness, 6=Address, 7=Bank
+// Steps: 0=Personal, 1=Phone, 2=Pay, 3=BVN, 4=NIN, 5=Liveness, 6=Address, 7=Bank
+// CRC runs automatically after BVN is verified (no separate step)
 const STEPS = [
   { id: 'personal', title: 'Personal', icon: UserIcon },
   { id: 'phone', title: 'Phone', icon: Phone },
-  { id: 'credit', title: 'Credit Score', icon: TrendingUp },
+  { id: 'pay', title: 'Pay', icon: TrendingUp },
   { id: 'bvn', title: 'BVN', icon: CreditCard },
   { id: 'nin', title: 'NIN', icon: CreditCard },
   { id: 'liveness', title: 'Liveness', icon: UserIcon },
@@ -94,7 +95,9 @@ export default function KYC() {
         }));
         // Allow deep-linking to BVN step (takes priority over auto-detection)
         const urlParams = new URLSearchParams(window.location.search);
-        if (urlParams.get('step') === 'bvn') {
+        if (urlParams.get('step') === 'nin') {
+          setCurrentStep(4);
+        } else if (urlParams.get('step') === 'bvn') {
           setCurrentStep(3);
         } else {
           // Find the first incomplete step
@@ -113,7 +116,7 @@ export default function KYC() {
             else if (!kycData[0].bvn_verified) setCurrentStep(3);
             else if (!kycData[0].nin_verified) setCurrentStep(4);
             else if (!kycData[0].facial_recognition_verified) setCurrentStep(5);
-            else if (!kycData[0].residential_address || !kycData[0].property_type) setCurrentStep(6);
+            else if (!kycData[0].residential_address) setCurrentStep(6);
             else if (!kycData[0].account_number) setCurrentStep(7);
             else navigate(createPageUrl('Dashboard'));
           }
@@ -342,33 +345,11 @@ export default function KYC() {
     }
   };
 
-  const skipBVN = async () => {
-    if (!formData.bvn || formData.bvn.length !== 11) {
-      setError('Please enter your 11-digit BVN before continuing');
-      return;
-    }
-    setSaving(true);
-    try {
-      await base44.entities.KYCProfile.update(kyc.id, {
-        bvn: formData.bvn,
-        bvn_verified: false
-      });
-      setCurrentStep(4); // Move to NIN
-      setError(null);
-    } catch (err) {
-      setError('Failed to save BVN. Please try again.');
-    } finally {
-      setSaving(false);
-    }
-  };
+
 
   const saveAddress = async () => {
       if (!formData.residential_address || !formData.city || !formData.residential_state || !formData.residential_lga) {
         setError('Please fill in all address fields');
-        return;
-      }
-      if (!formData.property_type) {
-        setError('Please select property type');
         return;
       }
       setSaving(true);
@@ -377,9 +358,7 @@ export default function KYC() {
           residential_address: formData.residential_address,
           city: formData.city,
           residential_state: formData.residential_state,
-          residential_lga: formData.residential_lga,
-          property_type: formData.property_type,
-          property_years: parseInt(formData.property_years) || 0
+          residential_lga: formData.residential_lga
         });
         setCurrentStep(7); // Move to bank (step 7)
         setError(null);
@@ -692,14 +671,15 @@ export default function KYC() {
                         const res = await base44.functions.invoke('verifyBVNEmailOTP', { otp });
                         if (!res.data.success) throw new Error(res.data.error || 'Invalid OTP');
 
-                        // After BVN verified, check if there's a paid credit search waiting to run
+                        // BVN now verified — run CRC credit search immediately
                         const kycProfile = await base44.entities.KYCProfile.filter({ user_id: user.id });
                         const bvn = kycProfile[0]?.bvn;
                         const paidSearches = await base44.entities.CreditSearch.filter({ user_id: user.id, payment_status: 'paid', search_status: 'pending' });
                         if (paidSearches.length > 0 && bvn) {
+                          // Run CRC via redirect to CreditSearch page with run=true param
                           setError(null);
                           setSaving(false);
-                          navigate(createPageUrl('CreditSearch') + '?run=true&search_id=' + paidSearches[0].id);
+                          navigate(createPageUrl('CreditSearch') + '?run=true&search_id=' + paidSearches[0].id + '&next=nin');
                           return;
                         }
 
@@ -751,15 +731,7 @@ export default function KYC() {
                     {saving ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
                     Verify BVN <ArrowRight className="ml-2 w-4 h-4" />
                   </Button>
-                  <Button
-                    variant="outline"
-                    className="w-full border-amber-300 text-amber-700 hover:bg-amber-50"
-                    onClick={skipBVN}
-                    disabled={saving}
-                  >
-                    {saving ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
-                    Continue Without BVN Verification
-                  </Button>
+
                 </CardContent>
               </Card>
             )}
@@ -807,90 +779,60 @@ export default function KYC() {
                   <div className="w-14 h-14 bg-emerald-100 rounded-2xl flex items-center justify-center mb-4">
                     <MapPin className="w-7 h-7 text-emerald-600" />
                   </div>
-                  <CardTitle>Address & Property Details</CardTitle>
+                  <CardTitle>Residential Address</CardTitle>
                   <CardDescription>Where do you currently live?</CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
-                  <div className="space-y-4 pb-4 border-b">
-                    <h3 className="font-semibold text-sm text-gray-700">Residential Address</h3>
-                    <div>
-                      <Label>Street Address</Label>
-                      <Input
-                        placeholder="123 Main Street, Lekki"
-                        value={formData.residential_address}
-                        onChange={(e) => handleChange('residential_address', e.target.value)}
-                        className="mt-1"
-                      />
-                    </div>
-                    <div>
-                      <Label>City/Town</Label>
-                      <Input
-                        placeholder="e.g., Lagos, Abuja, Kano"
-                        value={formData.city}
-                        onChange={(e) => handleChange('city', e.target.value)}
-                        className="mt-1"
-                      />
-                    </div>
-                    <div>
-                      <Label>State</Label>
-                      <Select value={formData.residential_state} onValueChange={(v) => {
-                        handleChange('residential_state', v);
-                        handleChange('residential_lga', '');
-                      }}>
-                        <SelectTrigger className="mt-1">
-                          <SelectValue placeholder="Select state" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {STATES.map(state => (
-                            <SelectItem key={state} value={state}>{state}</SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    <div>
-                      <Label>LGA</Label>
-                      <Select 
-                        value={formData.residential_lga} 
-                        onValueChange={(v) => handleChange('residential_lga', v)}
-                        disabled={!formData.residential_state}
-                      >
-                        <SelectTrigger className="mt-1">
-                          <SelectValue placeholder={formData.residential_state ? "Select LGA" : "Select state first"} />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {formData.residential_state && getLGAsForState(formData.residential_state).map(lga => (
-                            <SelectItem key={lga} value={lga}>{lga}</SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
+                  <div>
+                    <Label>Street Address</Label>
+                    <Input
+                      placeholder="123 Main Street, Lekki"
+                      value={formData.residential_address}
+                      onChange={(e) => handleChange('residential_address', e.target.value)}
+                      className="mt-1"
+                    />
                   </div>
-
-                  <div className="space-y-4 pt-2">
-                    <h3 className="font-semibold text-sm text-gray-700">Property Details</h3>
-                    <div>
-                      <Label>Property Type</Label>
-                      <Select value={formData.property_type} onValueChange={(v) => handleChange('property_type', v)}>
-                        <SelectTrigger className="mt-1">
-                          <SelectValue placeholder="Select type" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="owned">Owned</SelectItem>
-                          <SelectItem value="rented">Rented</SelectItem>
-                          <SelectItem value="family">Family Property</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    <div>
-                      <Label>Years at this Property</Label>
-                      <Input
-                        type="number"
-                        placeholder="2"
-                        value={formData.property_years}
-                        onChange={(e) => handleChange('property_years', e.target.value)}
-                        className="mt-1"
-                      />
-                    </div>
+                  <div>
+                    <Label>City/Town</Label>
+                    <Input
+                      placeholder="e.g., Lagos, Abuja, Kano"
+                      value={formData.city}
+                      onChange={(e) => handleChange('city', e.target.value)}
+                      className="mt-1"
+                    />
+                  </div>
+                  <div>
+                    <Label>State</Label>
+                    <Select value={formData.residential_state} onValueChange={(v) => {
+                      handleChange('residential_state', v);
+                      handleChange('residential_lga', '');
+                    }}>
+                      <SelectTrigger className="mt-1">
+                        <SelectValue placeholder="Select state" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {STATES.map(state => (
+                          <SelectItem key={state} value={state}>{state}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div>
+                    <Label>LGA</Label>
+                    <Select 
+                      value={formData.residential_lga} 
+                      onValueChange={(v) => handleChange('residential_lga', v)}
+                      disabled={!formData.residential_state}
+                    >
+                      <SelectTrigger className="mt-1">
+                        <SelectValue placeholder={formData.residential_state ? "Select LGA" : "Select state first"} />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {formData.residential_state && getLGAsForState(formData.residential_state).map(lga => (
+                          <SelectItem key={lga} value={lga}>{lga}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
                   </div>
 
                   <Button 

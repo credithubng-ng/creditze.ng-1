@@ -86,9 +86,9 @@ export default function CreditSearch() {
             });
           }
 
-          // Payment done — redirect to KYC to complete BVN → NIN → Liveness before CRC runs
+          // Payment done — redirect to KYC at BVN step so user can verify BVN (which triggers CRC)
           setProcessing(false);
-          navigate(createPageUrl('KYC'));
+          navigate(createPageUrl('KYC') + '?step=bvn');
         } else {
           setError('Payment verification failed. Please contact support.');
           setProcessing(false);
@@ -227,9 +227,12 @@ export default function CreditSearch() {
 
       // Redirect to KYC after showing result briefly
       if (result.search_status === 'successful') {
+        const urlParams = new URLSearchParams(window.location.search);
+        const nextStep = urlParams.get('next');
         setTimeout(() => {
-          navigate(createPageUrl('KYC'));
-        }, 4000);
+          // If coming from BVN OTP flow, go directly to NIN step
+          navigate(nextStep === 'nin' ? createPageUrl('KYC') + '?step=nin' : createPageUrl('KYC'));
+        }, 3000);
       }
 
     } catch (err) {
