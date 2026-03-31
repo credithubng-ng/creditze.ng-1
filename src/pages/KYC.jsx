@@ -471,6 +471,15 @@ export default function KYC() {
                 </CardHeader>
                 <CardContent className="space-y-4">
                   <div>
+                    <Label>Email Address</Label>
+                    <Input
+                      value={user?.email || ''}
+                      disabled
+                      className="mt-1 bg-gray-50 text-gray-500"
+                    />
+                    <p className="text-xs text-gray-400 mt-1">This is your registered email and cannot be changed</p>
+                  </div>
+                  <div>
                     <Label>Full Name</Label>
                     <Input
                       placeholder="Enter your full name"
