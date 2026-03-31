@@ -73,11 +73,6 @@ export default function KYC() {
   useEffect(() => {
     loadData();
     loadBanks();
-    // Allow deep-linking to BVN step (e.g. from Credit Search page)
-    const urlParams = new URLSearchParams(window.location.search);
-    if (urlParams.get('step') === 'bvn') {
-      setCurrentStep(3);
-    }
   }, []);
 
   const loadData = async () => {
@@ -92,16 +87,22 @@ export default function KYC() {
           ...prev,
           ...kycData[0]
         }));
-        // Find the first incomplete step
-        if (!kycData[0].full_name || !kycData[0].date_of_birth || !kycData[0].gender) setCurrentStep(0);
-        else if (!kycData[0].phone_verified) setCurrentStep(1);
-        else if (!kycData[0].bvn) setCurrentStep(2); // Credit search
-        else if (!kycData[0].bvn_verified) setCurrentStep(3); // BVN
-        else if (!kycData[0].residential_address || !kycData[0].property_type) setCurrentStep(4);
-        else if (!kycData[0].account_number) setCurrentStep(5);
-        else {
-          // All complete, redirect to dashboard
-          navigate(createPageUrl('Dashboard'));
+        // Allow deep-linking to BVN step (takes priority over auto-detection)
+        const urlParams = new URLSearchParams(window.location.search);
+        if (urlParams.get('step') === 'bvn') {
+          setCurrentStep(3);
+        } else {
+          // Find the first incomplete step
+          if (!kycData[0].full_name || !kycData[0].date_of_birth || !kycData[0].gender) setCurrentStep(0);
+          else if (!kycData[0].phone_verified) setCurrentStep(1);
+          else if (!kycData[0].bvn) setCurrentStep(2); // Credit search
+          else if (!kycData[0].bvn_verified) setCurrentStep(3); // BVN
+          else if (!kycData[0].residential_address || !kycData[0].property_type) setCurrentStep(4);
+          else if (!kycData[0].account_number) setCurrentStep(5);
+          else {
+            // All complete, redirect to dashboard
+            navigate(createPageUrl('Dashboard'));
+          }
         }
       }
     } catch (error) {
