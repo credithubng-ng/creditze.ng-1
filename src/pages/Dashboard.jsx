@@ -133,12 +133,12 @@ export default function Dashboard() {
           <div className="flex items-center justify-between mb-6">
             <div>
               <p className="text-emerald-100 text-sm">Welcome back,</p>
-              <h1 className="text-white text-xl font-bold">{user?.full_name?.split(' ')[0] || 'User'}</h1>
+              <h1 className="text-white text-xl font-bold">{(kyc?.full_name || user?.full_name)?.split(' ')[0] || 'User'}</h1>
             </div>
             <Link to={createPageUrl('Profile')}>
               <div className="w-10 h-10 bg-white/20 rounded-full flex items-center justify-center">
                 <span className="text-white font-semibold">
-                  {user?.full_name?.charAt(0) || 'U'}
+                  {(kyc?.full_name || user?.full_name)?.charAt(0) || 'U'}
                 </span>
               </div>
             </Link>
