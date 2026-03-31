@@ -27,13 +27,14 @@ import { STATES, getLGAsForState } from '@/components/utils/nigeriaStatesLgas';
 import NINStep from '@/components/kyc/NINStep';
 import LivenessStep from '@/components/kyc/LivenessStep';
 
+// Steps: 0=Personal, 1=Phone, 2=BVN, 3=NIN, 4=Liveness, 5=Credit, 6=Address, 7=Bank
 const STEPS = [
   { id: 'personal', title: 'Personal', icon: UserIcon },
   { id: 'phone', title: 'Phone', icon: Phone },
-  { id: 'credit', title: 'Credit Score', icon: TrendingUp },
   { id: 'bvn', title: 'BVN', icon: CreditCard },
   { id: 'nin', title: 'NIN', icon: CreditCard },
   { id: 'liveness', title: 'Liveness', icon: UserIcon },
+  { id: 'credit', title: 'Credit Score', icon: TrendingUp },
   { id: 'address', title: 'Address', icon: MapPin },
   { id: 'bank', title: 'Bank', icon: Banknote }
 ];
@@ -94,15 +95,15 @@ export default function KYC() {
         // Allow deep-linking to BVN step (takes priority over auto-detection)
         const urlParams = new URLSearchParams(window.location.search);
         if (urlParams.get('step') === 'bvn') {
-          setCurrentStep(3);
+          setCurrentStep(2);
         } else {
           // Find the first incomplete step
+          // Order: 0=Personal, 1=Phone, 2=BVN, 3=NIN, 4=Liveness, 5=Credit, 6=Address, 7=Bank
           if (!kycData[0].full_name || !kycData[0].date_of_birth || !kycData[0].gender) setCurrentStep(0);
           else if (!kycData[0].phone_verified) setCurrentStep(1);
-          else if (!kycData[0].bvn) setCurrentStep(2); // Credit search
-          else if (!kycData[0].bvn_verified) setCurrentStep(3); // BVN
-          else if (!kycData[0].nin_verified) setCurrentStep(4); // NIN
-          else if (!kycData[0].facial_recognition_verified) setCurrentStep(5); // Liveness
+          else if (!kycData[0].bvn_verified) setCurrentStep(2); // BVN
+          else if (!kycData[0].nin_verified) setCurrentStep(3); // NIN
+          else if (!kycData[0].facial_recognition_verified) setCurrentStep(4); // Liveness
           else if (!kycData[0].residential_address || !kycData[0].property_type) setCurrentStep(6);
           else if (!kycData[0].account_number) setCurrentStep(7);
           else {
@@ -252,7 +253,7 @@ export default function KYC() {
         const newKyc = await base44.entities.KYCProfile.create(kycUpdate);
         setKyc(newKyc);
       }
-      setCurrentStep(2); // Move to credit search
+      setCurrentStep(2); // Move to BVN
       setError(null);
     } catch (err) {
       setError('Failed to save phone number. Please try again.');
@@ -299,7 +300,7 @@ export default function KYC() {
         const newKyc = await base44.entities.KYCProfile.create(kycUpdate);
         setKyc(newKyc);
       }
-      setCurrentStep(2); // Move to credit search
+      setCurrentStep(2); // Move to BVN
       setError(null);
       } catch (err) {
       setError(err.message || 'Verification failed. Please try again.');
@@ -345,7 +346,7 @@ export default function KYC() {
         bvn: formData.bvn,
         bvn_verified: false
       });
-      setCurrentStep(4); // Move to NIN
+      setCurrentStep(3); // Move to NIN
       setError(null);
     } catch (err) {
       setError('Failed to save BVN. Please try again.');
@@ -645,38 +646,15 @@ export default function KYC() {
               </Card>
             )}
 
-            {/* Credit Search - Step 2 */}
-             {currentStep === 2 && (
-               <Card className="border-0 shadow-md">
-                 <CardHeader>
-                   <div className="w-14 h-14 bg-blue-100 rounded-2xl flex items-center justify-center mb-4">
-                     <TrendingUp className="w-7 h-7 text-blue-600" />
-                   </div>
-                   <CardTitle>Check Your Credit Score</CardTitle>
-                   <CardDescription>We value your credit before we proceed. This helps us assess your eligibility and offer better terms.</CardDescription>
-                 </CardHeader>
-                 <CardContent className="space-y-4">
-                   <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-                     <p className="text-sm text-blue-900">
-                       A one-time payment of <strong>₦850</strong> gets you a credit search valid for 90 days. If your score is low, you can still build your credit with our credit builder loans.
-                     </p>
-                   </div>
-                   <Button 
-                     className="w-full bg-blue-600 hover:bg-blue-700"
-                     onClick={() => navigate(createPageUrl('CreditSearch'))}
-                   >
-                     Proceed to Credit Search <ArrowRight className="ml-2 w-4 h-4" />
-                   </Button>
-                   <Button
-                     variant="outline"
-                     className="w-full"
-                     onClick={() => setCurrentStep(3)}
-                   >
-                     Skip Credit Search for Now
-                   </Button>
-                 </CardContent>
-               </Card>
-             )}
+
+
+            {/* NIN Verification - Step 3 */}
+            {currentStep === 3 && (
+              <NINStep
+                onComplete={() => { setCurrentStep(4); setError(null); }}
+                onSkip={() => setCurrentStep(4)}
+              />
+            )}
 
             {/* BVN OTP - Step after verifyBVN */}
             {currentStep === 'bvn-otp' && (
@@ -718,7 +696,7 @@ export default function KYC() {
                           return;
                         }
 
-                        setCurrentStep(4); // Move to NIN
+                        setCurrentStep(3); // Move to NIN
                         setError(null);
                       } catch (err) {
                         setError(err.message || 'OTP verification failed');
@@ -729,15 +707,15 @@ export default function KYC() {
                     {saving ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
                     Verify OTP <ArrowRight className="ml-2 w-4 h-4" />
                   </Button>
-                  <Button variant="outline" className="w-full" onClick={() => setCurrentStep(3)}>
+                  <Button variant="outline" className="w-full" onClick={() => setCurrentStep(2)}>
                     Back
                   </Button>
                 </CardContent>
               </Card>
             )}
 
-            {/* BVN Verification - Step 3 */}
-             {currentStep === 3 && (
+            {/* BVN Verification - Step 2 */}
+             {currentStep === 2 && (
               <Card className="border-0 shadow-md">
                 <CardHeader>
                   <div className="w-14 h-14 bg-emerald-100 rounded-2xl flex items-center justify-center mb-4">
@@ -779,20 +757,45 @@ export default function KYC() {
               </Card>
             )}
 
-            {/* NIN Verification - Step 4 */}
+            {/* Liveness Check - Step 4 */}
             {currentStep === 4 && (
-              <NINStep
+              <LivenessStep
                 onComplete={() => { setCurrentStep(5); setError(null); }}
                 onSkip={() => setCurrentStep(5)}
               />
             )}
 
-            {/* Liveness Check - Step 5 */}
+            {/* Credit Search - Step 5 */}
             {currentStep === 5 && (
-              <LivenessStep
-                onComplete={() => { setCurrentStep(6); setError(null); }}
-                onSkip={() => setCurrentStep(6)}
-              />
+              <Card className="border-0 shadow-md">
+                <CardHeader>
+                  <div className="w-14 h-14 bg-blue-100 rounded-2xl flex items-center justify-center mb-4">
+                    <TrendingUp className="w-7 h-7 text-blue-600" />
+                  </div>
+                  <CardTitle>Check Your Credit Score</CardTitle>
+                  <CardDescription>We value your credit before we proceed. This helps us assess your eligibility and offer better terms.</CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                    <p className="text-sm text-blue-900">
+                      A one-time payment of <strong>₦850</strong> gets you a credit search valid for 90 days. If your score is low, you can still build your credit with our credit builder loans.
+                    </p>
+                  </div>
+                  <Button
+                    className="w-full bg-blue-600 hover:bg-blue-700"
+                    onClick={() => navigate(createPageUrl('CreditSearch'))}
+                  >
+                    Proceed to Credit Search <ArrowRight className="ml-2 w-4 h-4" />
+                  </Button>
+                  <Button
+                    variant="outline"
+                    className="w-full"
+                    onClick={() => setCurrentStep(6)}
+                  >
+                    Skip Credit Search for Now
+                  </Button>
+                </CardContent>
+              </Card>
             )}
 
             {/* Address & Property - Step 6 */}
