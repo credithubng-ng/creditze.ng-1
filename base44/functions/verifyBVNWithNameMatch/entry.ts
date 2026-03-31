@@ -32,11 +32,14 @@ async function getQoreIDToken() {
   }
 
   const tokenData = await tokenResponse.json();
-  cachedToken = tokenData.accessToken;
-  // expiresIn is in seconds; subtract 60s buffer
-  tokenExpireAt = currentTime + (tokenData.expiresIn || 7200) - 60;
+  console.log('QoreID token response:', JSON.stringify(tokenData));
 
-  console.log(`New QoreID token obtained, expires in ${tokenData.expiresIn}s`);
+  cachedToken = tokenData.accessToken;
+  const expiresIn = tokenData.expiresIn || 7200;
+  // subtract 60s buffer to refresh before actual expiry
+  tokenExpireAt = currentTime + expiresIn - 60;
+
+  console.log(`New QoreID token obtained, expires in ${expiresIn}s`);
   return cachedToken;
 }
 
@@ -79,17 +82,8 @@ Deno.serve(async (req) => {
     }
     const kyc = kycData[0];
 
-    // Get QoreID access token (auto-refreshes every 2 hours, falls back to API key)
-    let accessToken;
-    try {
-      accessToken = await getQoreIDToken();
-    } catch (tokenErr) {
-      console.warn('Token fetch failed, falling back to API key:', tokenErr.message);
-      accessToken = Deno.env.get('QOREID_API_KEY');
-      if (!accessToken) {
-        return Response.json({ success: false, error: 'QoreID not configured' }, { status: 500 });
-      }
-    }
+    // Get QoreID access token (auto-refreshes every 2 hours)
+    const accessToken = await getQoreIDToken();
 
     // Parse user's name for firstname/lastname (payload overrides KYC for testing)
     const userFullName = kyc.full_name || user.full_name || '';
