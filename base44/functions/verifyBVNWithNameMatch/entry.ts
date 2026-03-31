@@ -26,7 +26,7 @@ Deno.serve(async (req) => {
       return Response.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const { bvn, search_id } = await req.json();
+    const { bvn, search_id, firstname: payloadFirstname, lastname: payloadLastname } = await req.json();
 
     if (!bvn || bvn.length !== 11) {
       return Response.json({ success: false, error: 'Invalid BVN format' }, { status: 400 });
@@ -47,11 +47,11 @@ Deno.serve(async (req) => {
 
     const accessToken = apiKey;
 
-    // Parse user's name for firstname/lastname
+    // Parse user's name for firstname/lastname (payload overrides KYC for testing)
     const userFullName = kyc.full_name || user.full_name || '';
     const nameParts = userFullName.trim().split(/\s+/);
-    const firstname = nameParts[0] || '';
-    const lastname = nameParts[nameParts.length - 1] || nameParts[0] || '';
+    const firstname = payloadFirstname || nameParts[0] || '';
+    const lastname = payloadLastname || nameParts[nameParts.length - 1] || nameParts[0] || '';
 
     console.log(`Calling bvn-basic for BVN: ${bvn.slice(0,4)}**** with name: ${firstname} ${lastname}`);
 
@@ -127,16 +127,19 @@ Deno.serve(async (req) => {
       }, { status: 400 });
     }
 
-    // BVN is valid, send email OTP to BVN email on record
-    if (!bvnEmail) {
+    // Send OTP to BVN email if available, otherwise fall back to user's registered email
+    const otpTarget = bvnEmail || user.email;
+    if (!otpTarget) {
       return Response.json({ 
         success: false, 
-        error: 'No email found on BVN record. Please contact support.' 
+        error: 'No email address available for OTP delivery.' 
       }, { status: 400 });
     }
 
     const otpCode = Math.floor(100000 + Math.random() * 900000).toString();
     const expiresAt = new Date(Date.now() + 15 * 60 * 1000).toISOString(); // 15 minutes
+
+    console.log(`Sending OTP to: ${otpTarget} (${bvnEmail ? 'BVN email' : 'user email fallback'})`);
 
     await base44.entities.KYCProfile.update(kyc.id, {
       bvn: bvn,
@@ -148,12 +151,12 @@ Deno.serve(async (req) => {
       bvn_name_match_score: nameMatchCount,
       otp_email: otpCode,
       otp_email_expires: expiresAt,
-      otp_email_target: bvnEmail
+      otp_email_target: otpTarget
     });
 
-    // Send email OTP to BVN email on record
+    // Send email OTP
     await base44.integrations.Core.SendEmail({
-      to: bvnEmail,
+      to: otpTarget,
       subject: '🔐 BVN Verification Code — Creditze',
       body: `<!DOCTYPE html>
 <html>
