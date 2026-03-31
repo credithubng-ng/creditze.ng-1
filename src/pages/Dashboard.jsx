@@ -285,6 +285,7 @@ export default function Dashboard() {
                     { label: 'Phone Verification', done: kyc?.phone_verified, warning: kyc?.phone_number && !kyc?.phone_verified },
                     { label: 'BVN Verification', done: kyc?.bvn_verified },
                     { label: 'NIN Verification', done: kyc?.nin_verified },
+                    { label: 'Liveness Check', done: kyc?.facial_recognition_verified },
                     { label: 'Address Details', done: kyc?.residential_address },
                     { label: 'Property Details', done: kyc?.property_type }
                   ].map((item, i) => (

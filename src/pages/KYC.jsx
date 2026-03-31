@@ -24,12 +24,16 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { InputOTP, InputOTPGroup, InputOTPSlot } from '@/components/ui/input-otp';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { STATES, getLGAsForState } from '@/components/utils/nigeriaStatesLgas';
+import NINStep from '@/components/kyc/NINStep';
+import LivenessStep from '@/components/kyc/LivenessStep';
 
 const STEPS = [
   { id: 'personal', title: 'Personal', icon: UserIcon },
   { id: 'phone', title: 'Phone', icon: Phone },
   { id: 'credit', title: 'Credit Score', icon: TrendingUp },
   { id: 'bvn', title: 'BVN', icon: CreditCard },
+  { id: 'nin', title: 'NIN', icon: CreditCard },
+  { id: 'liveness', title: 'Liveness', icon: UserIcon },
   { id: 'address', title: 'Address', icon: MapPin },
   { id: 'bank', title: 'Bank', icon: Banknote }
 ];
@@ -97,8 +101,10 @@ export default function KYC() {
           else if (!kycData[0].phone_verified) setCurrentStep(1);
           else if (!kycData[0].bvn) setCurrentStep(2); // Credit search
           else if (!kycData[0].bvn_verified) setCurrentStep(3); // BVN
-          else if (!kycData[0].residential_address || !kycData[0].property_type) setCurrentStep(4);
-          else if (!kycData[0].account_number) setCurrentStep(5);
+          else if (!kycData[0].nin_verified) setCurrentStep(4); // NIN
+          else if (!kycData[0].facial_recognition_verified) setCurrentStep(5); // Liveness
+          else if (!kycData[0].residential_address || !kycData[0].property_type) setCurrentStep(6);
+          else if (!kycData[0].account_number) setCurrentStep(7);
           else {
             // All complete, redirect to dashboard
             navigate(createPageUrl('Dashboard'));
@@ -339,7 +345,7 @@ export default function KYC() {
         bvn: formData.bvn,
         bvn_verified: false
       });
-      setCurrentStep(4); // Move to address
+      setCurrentStep(4); // Move to NIN
       setError(null);
     } catch (err) {
       setError('Failed to save BVN. Please try again.');
@@ -367,7 +373,7 @@ export default function KYC() {
           property_type: formData.property_type,
           property_years: parseInt(formData.property_years) || 0
         });
-        setCurrentStep(5); // Move to bank (step 5)
+        setCurrentStep(7); // Move to bank (step 7)
         setError(null);
       } catch (err) {
         setError('Failed to save address. Please try again.');
@@ -434,7 +440,7 @@ export default function KYC() {
           </Button>
           <div>
             <h1 className="font-semibold text-gray-900">KYC Verification</h1>
-            <p className="text-sm text-gray-500">Step {currentStep + 1} of {STEPS.length}</p>
+            <p className="text-sm text-gray-500">Step {typeof currentStep === 'number' ? currentStep + 1 : '—'} of {STEPS.length}</p>
           </div>
         </div>
       </div>
@@ -442,15 +448,18 @@ export default function KYC() {
       {/* Progress */}
       <div className="bg-white px-4 py-3 border-b">
         <div className="max-w-lg mx-auto flex gap-2">
-          {STEPS.map((step, i) => (
-            <div
-              key={step.id}
-              className={`flex-1 h-1.5 rounded-full transition-colors ${
-                i < currentStep ? 'bg-emerald-500' : 
-                i === currentStep ? 'bg-emerald-300' : 'bg-gray-200'
-              }`}
-            />
-          ))}
+          {STEPS.map((step, i) => {
+            const stepNum = typeof currentStep === 'number' ? currentStep : 3;
+            return (
+              <div
+                key={step.id}
+                className={`flex-1 h-1.5 rounded-full transition-colors ${
+                  i < stepNum ? 'bg-emerald-500' : 
+                  i === stepNum ? 'bg-emerald-300' : 'bg-gray-200'
+                }`}
+              />
+            );
+          })}
         </div>
       </div>
 
@@ -658,12 +667,12 @@ export default function KYC() {
                    >
                      Proceed to Credit Search <ArrowRight className="ml-2 w-4 h-4" />
                    </Button>
-                   <Button 
+                   <Button
                      variant="outline"
                      className="w-full"
                      onClick={() => setCurrentStep(3)}
                    >
-                     Skip for Now
+                     Skip Credit Search for Now
                    </Button>
                  </CardContent>
                </Card>
@@ -709,7 +718,7 @@ export default function KYC() {
                           return;
                         }
 
-                        setCurrentStep(4); // Move to address
+                        setCurrentStep(4); // Move to NIN
                         setError(null);
                       } catch (err) {
                         setError(err.message || 'OTP verification failed');
@@ -770,8 +779,24 @@ export default function KYC() {
               </Card>
             )}
 
-            {/* Address & Property - Step 4 */}
-             {currentStep === 4 && (
+            {/* NIN Verification - Step 4 */}
+            {currentStep === 4 && (
+              <NINStep
+                onComplete={() => { setCurrentStep(5); setError(null); }}
+                onSkip={() => setCurrentStep(5)}
+              />
+            )}
+
+            {/* Liveness Check - Step 5 */}
+            {currentStep === 5 && (
+              <LivenessStep
+                onComplete={() => { setCurrentStep(6); setError(null); }}
+                onSkip={() => setCurrentStep(6)}
+              />
+            )}
+
+            {/* Address & Property - Step 6 */}
+             {currentStep === 6 && (
               <Card className="border-0 shadow-md">
                 <CardHeader>
                   <div className="w-14 h-14 bg-emerald-100 rounded-2xl flex items-center justify-center mb-4">
@@ -875,8 +900,8 @@ export default function KYC() {
               </Card>
             )}
 
-            {/* Bank Details - Step 5 */}
-             {currentStep === 5 && (
+            {/* Bank Details - Step 7 */}
+             {currentStep === 7 && (
               <Card className="border-0 shadow-md">
                 <CardHeader>
                   <div className="w-14 h-14 bg-emerald-100 rounded-2xl flex items-center justify-center mb-4">
