@@ -88,7 +88,7 @@ export default function CreditSearch() {
 
           // Payment done — redirect to KYC to complete BVN → NIN → Liveness before CRC runs
           setProcessing(false);
-          navigate(createPageUrl('KYC') + '?step=bvn');
+          navigate(createPageUrl('KYC'));
         } else {
           setError('Payment verification failed. Please contact support.');
           setProcessing(false);
