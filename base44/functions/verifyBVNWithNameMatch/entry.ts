@@ -1,18 +1,12 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.23';
 
 // Module-level token cache (persists for the lifetime of the Deno isolate)
+// On first use, try QOREID_API_KEY from env. When it expires (403), auto-generate a new one.
 let cachedToken = null;
 let tokenExpireAt = 0;
 
-async function getQoreIDToken() {
-  const currentTime = Math.floor(Date.now() / 1000);
-
-  if (cachedToken && currentTime < tokenExpireAt) {
-    console.log('Using cached QoreID token');
-    return cachedToken;
-  }
-
-  console.log('Fetching new QoreID token...');
+async function refreshQoreIDToken() {
+  console.log('Fetching new QoreID token via client credentials...');
   const clientId = Deno.env.get('QOREID_CLIENT_ID');
   const secret = Deno.env.get('QOREID_SECRET');
 
@@ -32,15 +26,36 @@ async function getQoreIDToken() {
   }
 
   const tokenData = await tokenResponse.json();
-  console.log('QoreID token response:', JSON.stringify(tokenData));
+  const expiresIn = tokenData.expiresIn || 7200;
+  const currentTime = Math.floor(Date.now() / 1000);
 
   cachedToken = tokenData.accessToken;
-  const expiresIn = tokenData.expiresIn || 7200;
-  // subtract 60s buffer to refresh before actual expiry
-  tokenExpireAt = currentTime + expiresIn - 60;
+  tokenExpireAt = currentTime + expiresIn - 60; // 60s buffer
 
   console.log(`New QoreID token obtained, expires in ${expiresIn}s`);
   return cachedToken;
+}
+
+async function getQoreIDToken() {
+  const currentTime = Math.floor(Date.now() / 1000);
+
+  // Use cached/generated token if still valid
+  if (cachedToken && currentTime < tokenExpireAt) {
+    console.log('Using cached QoreID token');
+    return cachedToken;
+  }
+
+  // First time: use the API key from environment
+  const envApiKey = Deno.env.get('QOREID_API_KEY');
+  if (envApiKey && !cachedToken) {
+    console.log('Using QOREID_API_KEY from environment');
+    cachedToken = envApiKey;
+    tokenExpireAt = currentTime + 7200 - 60; // assume 2hr validity
+    return cachedToken;
+  }
+
+  // Token expired: auto-generate a new one
+  return await refreshQoreIDToken();
 }
 
 // Simple name matching: check if names are similar (handles variations)
@@ -93,16 +108,27 @@ Deno.serve(async (req) => {
 
     console.log(`Calling bvn-basic for BVN: ${bvn.slice(0,4)}**** with name: ${firstname} ${lastname}`);
 
-    // Call QoreID BVN basic verification endpoint
-    const qoreIdResponse = await fetch(`https://api.qoreid.com/v1/ng/identities/bvn-basic/${bvn}`, {
+    // Call QoreID BVN basic verification endpoint (with auto-retry if token expired)
+    const callQoreID = async (token) => fetch(`https://api.qoreid.com/v1/ng/identities/bvn-basic/${bvn}`, {
       method: 'POST',
       headers: {
-        'Authorization': `Bearer ${accessToken}`,
+        'Authorization': `Bearer ${token}`,
         'Content-Type': 'application/json',
         'accept': 'application/json'
       },
       body: JSON.stringify({ firstname, lastname })
     });
+
+    let qoreIdResponse = await callQoreID(accessToken);
+
+    // If token expired (401), force-refresh and retry once
+    if (qoreIdResponse.status === 401) {
+      console.log('Token expired (401), refreshing and retrying...');
+      cachedToken = null;
+      tokenExpireAt = 0;
+      const newToken = await refreshQoreIDToken();
+      qoreIdResponse = await callQoreID(newToken);
+    }
 
     const qoreIdData = await qoreIdResponse.json();
     console.log('QoreID BVN response:', JSON.stringify(qoreIdData));
