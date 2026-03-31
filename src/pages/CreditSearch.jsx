@@ -36,7 +36,25 @@ export default function CreditSearch() {
   useEffect(() => {
     loadData();
     checkPaymentCallback();
+    checkRunParam();
   }, []);
+
+  const checkRunParam = async () => {
+    const urlParams = new URLSearchParams(window.location.search);
+    if (urlParams.get('run') === 'true') {
+      const searchId = urlParams.get('search_id');
+      if (searchId) {
+        setProcessing(true);
+        setError(null);
+        window.history.replaceState({}, document.title, window.location.pathname);
+        const currentUser = await base44.auth.me();
+        setUser(currentUser);
+        const kycData = await base44.entities.KYCProfile.filter({ user_id: currentUser.id });
+        if (kycData[0]) setKyc(kycData[0]);
+        await performCreditSearch(searchId, kycData[0]);
+      }
+    }
+  };
 
   const checkPaymentCallback = async () => {
     const urlParams = new URLSearchParams(window.location.search);
@@ -47,15 +65,10 @@ export default function CreditSearch() {
       setError(null);
       
       try {
-        // Ensure user is loaded first
         const currentUser = await base44.auth.me();
         setUser(currentUser);
 
-        // Also load KYC so performCreditSearch can access it
-        const kycData = await base44.entities.KYCProfile.filter({ user_id: currentUser.id });
-        if (kycData[0]) setKyc(kycData[0]);
-
-        // Verify payment
+        // Verify payment with Paystack
         const verifyResponse = await base44.functions.invoke('paystackVerifyPayment', {
           reference: reference
         });
@@ -67,21 +80,17 @@ export default function CreditSearch() {
           });
 
           if (searches.length > 0) {
-            const search = searches[0];
-            
-            // Update payment status
-            await base44.entities.CreditSearch.update(search.id, {
+            // Mark payment as paid — do NOT run CRC yet
+            await base44.entities.CreditSearch.update(searches[0].id, {
               payment_status: 'paid'
             });
-
-            // Perform credit search
-            await performCreditSearch(search.id, kycData[0]);
-          } else {
-            setError('Payment record not found');
-            setProcessing(false);
           }
+
+          // Payment done — redirect to KYC to complete BVN → NIN → Liveness before CRC runs
+          setProcessing(false);
+          navigate(createPageUrl('KYC') + '?step=bvn');
         } else {
-          setError('Payment verification failed');
+          setError('Payment verification failed. Please contact support.');
           setProcessing(false);
         }
       } catch (err) {

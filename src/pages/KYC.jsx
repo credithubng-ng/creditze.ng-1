@@ -697,6 +697,18 @@ export default function KYC() {
                       try {
                         const res = await base44.functions.invoke('verifyBVNEmailOTP', { otp });
                         if (!res.data.success) throw new Error(res.data.error || 'Invalid OTP');
+
+                        // After BVN verified, check if there's a paid credit search waiting to run
+                        const kycProfile = await base44.entities.KYCProfile.filter({ user_id: user.id });
+                        const bvn = kycProfile[0]?.bvn;
+                        const paidSearches = await base44.entities.CreditSearch.filter({ user_id: user.id, payment_status: 'paid', search_status: 'pending' });
+                        if (paidSearches.length > 0 && bvn) {
+                          setError(null);
+                          setSaving(false);
+                          navigate(createPageUrl('CreditSearch') + '?run=true&search_id=' + paidSearches[0].id);
+                          return;
+                        }
+
                         setCurrentStep(4); // Move to address
                         setError(null);
                       } catch (err) {
