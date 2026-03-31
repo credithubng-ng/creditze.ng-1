@@ -58,22 +58,6 @@ async function getQoreIDToken() {
   return await refreshQoreIDToken();
 }
 
-// Simple name matching: check if names are similar (handles variations)
-function normalizeAndMatchName(name1, name2) {
-  if (!name1 || !name2) return false;
-  
-  const normalize = (n) => n.trim().toLowerCase().replace(/\s+/g, ' ');
-  const n1 = normalize(name1);
-  const n2 = normalize(name2);
-  
-  // Exact match
-  if (n1 === n2) return true;
-  
-  // Check if one contains the other (handles partial names)
-  if (n1.includes(n2) || n2.includes(n1)) return true;
-  
-  return false;
-}
 
 Deno.serve(async (req) => {
   try {
@@ -84,7 +68,7 @@ Deno.serve(async (req) => {
       return Response.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const { bvn, search_id, firstname: payloadFirstname, lastname: payloadLastname } = await req.json();
+    const { bvn } = await req.json();
 
     if (!bvn || bvn.length !== 11) {
       return Response.json({ success: false, error: 'Invalid BVN format' }, { status: 400 });
@@ -100,15 +84,13 @@ Deno.serve(async (req) => {
     // Get QoreID access token (auto-refreshes every 2 hours)
     const accessToken = await getQoreIDToken();
 
-    // Parse user's name for firstname/lastname (payload overrides KYC for testing)
+    // Use the user's full name from KYC for local matching only — do NOT send names to QoreID
     const userFullName = kyc.full_name || user.full_name || '';
-    const nameParts = userFullName.trim().split(/\s+/);
-    const firstname = payloadFirstname || nameParts[0] || '';
-    const lastname = payloadLastname || nameParts[nameParts.length - 1] || nameParts[0] || '';
 
-    console.log(`Calling bvn-basic for BVN: ${bvn.slice(0,4)}**** with name: ${firstname} ${lastname}`);
+    console.log(`Calling bvn-basic for BVN: ${bvn.slice(0,4)}**** (no names sent — matching locally)`);
 
-    // Call QoreID BVN basic verification endpoint (with auto-retry if token expired)
+    // Call QoreID BVN basic endpoint — send dummy names so QoreID returns the record,
+    // but we do our own matching locally (not relying on their match result)
     const callQoreID = async (token) => fetch(`https://api.qoreid.com/v1/ng/identities/bvn-basic/${bvn}`, {
       method: 'POST',
       headers: {
@@ -116,7 +98,7 @@ Deno.serve(async (req) => {
         'Content-Type': 'application/json',
         'accept': 'application/json'
       },
-      body: JSON.stringify({ firstname, lastname })
+      body: JSON.stringify({ firstname: 'a', lastname: 'b' })
     });
 
     let qoreIdResponse = await callQoreID(accessToken);
@@ -141,9 +123,9 @@ Deno.serve(async (req) => {
       return Response.json({ success: false, error: errMsg }, { status: 400 });
     }
 
-    // Check verification status
-    const bvnStatus = qoreIdData.status?.status;
-    if (bvnStatus && bvnStatus !== 'verified' && bvnStatus !== 'found') {
+    // Check that BVN data actually came back (state=complete means the BVN was found)
+    const bvnState = qoreIdData.status?.state;
+    if (!qoreIdData.bvn || (bvnState && bvnState !== 'complete')) {
       return Response.json({
         success: false,
         error: 'BVN not found or could not be verified. Please check your BVN and try again.'
@@ -157,28 +139,18 @@ Deno.serve(async (req) => {
     const bvnDob = bvnRecord.birthdate || '';
     const bvnGender = bvnRecord.gender?.toLowerCase() || '';
 
-    // Check name matches (2 of 3 required)
-    let nameMatchCount = 0;
-    
-    // Match 1: Full name vs BVN full name
-    if (normalizeAndMatchName(userFullName, bvnFullName)) {
-      nameMatchCount++;
-    }
+    // Local 2-of-3 name matching — compare individual name parts
+    const userParts = userFullName.trim().toLowerCase().split(/\s+/).filter(Boolean);
+    const bvnParts = bvnFullName.trim().toLowerCase().split(/\s+/).filter(Boolean);
 
-    // Match 2: Full name contains BVN last name (if detectable)
-    const bvnLastName = bvnFullName.split(' ').pop();
-    if (bvnLastName && normalizeAndMatchName(userFullName, bvnLastName)) {
-      nameMatchCount++;
-    }
+    // A user part matches a BVN part if: exact match OR one ends with the other (handles nicknames like "Deji" → "Adedeji")
+    const partMatches = (uPart, bPart) => uPart === bPart || bPart.endsWith(uPart) || uPart.endsWith(bPart);
+    const matchedParts = userParts.filter(uPart => bvnParts.some(bPart => partMatches(uPart, bPart)));
+    const nameMatchCount = matchedParts.length;
 
-    // Match 3: First name match
-    const userFirstName = userFullName.split(' ')[0];
-    const bvnFirstName = bvnFullName.split(' ')[0];
-    if (userFirstName && bvnFirstName && normalizeAndMatchName(userFirstName, bvnFirstName)) {
-      nameMatchCount++;
-    }
+    console.log(`Name match: user="${userFullName}" bvn="${bvnFullName}" matched=${nameMatchCount} parts`);
 
-    // Require at least 2 matches
+    // Require at least 2 name parts to match
     if (nameMatchCount < 2) {
       return Response.json({
         success: false,

@@ -265,7 +265,7 @@ export default function CreditSearch() {
     );
   }
 
-  // Check if BVN is available (minimum requirement for credit search)
+  // Check if BVN is available — if not, redirect directly to BVN step in KYC (step 3)
   if (!kyc || !kyc.bvn) {
     return (
       <div className="min-h-screen bg-gray-50">
@@ -278,18 +278,23 @@ export default function CreditSearch() {
           </div>
         </div>
         <div className="max-w-lg mx-auto px-4 py-6">
-          <Alert>
-            <AlertCircle className="h-4 w-4" />
-            <AlertDescription>
-              Please verify your BVN before proceeding with credit search.
-            </AlertDescription>
-          </Alert>
-          <Button 
-            className="w-full mt-4 bg-emerald-600 hover:bg-emerald-700"
-            onClick={() => navigate(createPageUrl('KYC'))}
-          >
-            Verify BVN
-          </Button>
+          <Card className="border-0 shadow-md">
+            <CardContent className="p-6 text-center">
+              <div className="w-16 h-16 bg-amber-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                <CreditCard className="w-8 h-8 text-amber-600" />
+              </div>
+              <h3 className="font-semibold text-gray-900 mb-2">BVN Required</h3>
+              <p className="text-sm text-gray-500 mb-6">
+                We need your BVN to run a credit search. It only takes a minute to verify.
+              </p>
+              <Button
+                className="w-full bg-emerald-600 hover:bg-emerald-700"
+                onClick={() => navigate(createPageUrl('KYC') + '?step=bvn')}
+              >
+                Enter BVN <ArrowLeft className="ml-2 w-4 h-4 rotate-180" />
+              </Button>
+            </CardContent>
+          </Card>
         </div>
       </div>
     );

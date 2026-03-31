@@ -73,6 +73,11 @@ export default function KYC() {
   useEffect(() => {
     loadData();
     loadBanks();
+    // Allow deep-linking to BVN step (e.g. from Credit Search page)
+    const urlParams = new URLSearchParams(window.location.search);
+    if (urlParams.get('step') === 'bvn') {
+      setCurrentStep(3);
+    }
   }, []);
 
   const loadData = async () => {
