@@ -84,7 +84,7 @@ Deno.serve(async (req) => {
             if (whatsappBaseUrl && whatsappToken) {
                 try {
                     console.log('Sending OTP via WhatsApp to:', intlPhone);
-                    const waResponse = await fetch(`${whatsappBaseUrl}/whatsapp/send/otp/`, {
+                    const waResponse = await fetch(whatsappBaseUrl, {
                         method: 'POST',
                         headers: {
                             'Authorization': `token ${whatsappToken}`,
