@@ -97,7 +97,11 @@ Deno.serve(async (req) => {
                             otp_code: otp
                         })
                     });
-                    const waData = await waResponse.json();
+                    const waRawText = await waResponse.text();
+                    console.log('WhatsApp raw response status:', waResponse.status);
+                    console.log('WhatsApp raw response body:', waRawText);
+                    let waData = {};
+                    try { waData = JSON.parse(waRawText); } catch(e) { /* not json */ }
                     console.log('WhatsApp OTP response:', JSON.stringify(waData));
                     if (waResponse.ok) {
                         whatsappSent = true;
@@ -106,6 +110,8 @@ Deno.serve(async (req) => {
                     }
                 } catch (waErr) {
                     console.log('WhatsApp OTP error, falling back to SMS:', waErr.message);
+                    // Log raw response text for debugging
+                    console.log('WhatsApp raw response text available in error above');
                 }
             }
 
