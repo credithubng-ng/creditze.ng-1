@@ -58,19 +58,8 @@ Deno.serve(async (req) => {
         }
 
         if (type === 'phone') {
-            // Send SMS via SmartSMS
-            const smartSmsToken = Deno.env.get('SMARTSMS_TOKEN');
-            
-            if (!smartSmsToken) {
-                return Response.json({ 
-                    success: false,
-                    error: 'SMS service not configured' 
-                }, { status: 500 });
-            }
-
-            // Format phone to 0XXXXXXXXXX (local Nigerian format for SmartSMS)
+            // Format phone number
             let formattedPhone = phone_number.toString().trim().replace(/\s+/g, '').replace(/[^0-9]/g, '');
-            
             if (formattedPhone.startsWith('234')) {
                 formattedPhone = '0' + formattedPhone.substring(3);
             }
@@ -82,6 +71,46 @@ Deno.serve(async (req) => {
                     success: false,
                     error: 'Invalid phone number format' 
                 }, { status: 400 });
+            }
+
+            // International format for WhatsApp (234XXXXXXXXXX)
+            const intlPhone = '234' + formattedPhone.substring(1);
+
+            // Try WhatsApp OTP first
+            const whatsappBaseUrl = Deno.env.get('WHATSAPP_OTP_BASE_URL');
+            let whatsappSent = false;
+
+            if (whatsappBaseUrl) {
+                try {
+                    console.log('Sending OTP via WhatsApp to:', intlPhone);
+                    const waResponse = await fetch(`${whatsappBaseUrl}/whatsapp/send/otp/`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ phone: intlPhone, otp })
+                    });
+                    const waData = await waResponse.json();
+                    console.log('WhatsApp OTP response:', JSON.stringify(waData));
+                    if (waResponse.ok) {
+                        whatsappSent = true;
+                    } else {
+                        console.log('WhatsApp OTP failed, falling back to SMS:', waData);
+                    }
+                } catch (waErr) {
+                    console.log('WhatsApp OTP error, falling back to SMS:', waErr.message);
+                }
+            }
+
+            if (whatsappSent) {
+                return Response.json({ success: true, message: 'OTP sent via WhatsApp' });
+            }
+
+            // Fallback: Send SMS via SmartSMS
+            const smartSmsToken = Deno.env.get('SMARTSMS_TOKEN');
+            if (!smartSmsToken) {
+                return Response.json({ 
+                    success: false,
+                    error: 'SMS service not configured' 
+                }, { status: 500 });
             }
 
             console.log('Sending SMS via SmartSMS to:', formattedPhone);
@@ -107,17 +136,16 @@ Deno.serve(async (req) => {
             let smsData = {};
             try { smsData = JSON.parse(smsRawText); } catch(e) { /* not json */ }
 
-            // SmartSMS returns code 1000 for success (even for DND numbers, it attempts delivery)
             if (!smsResponse.ok || (smsData.code && smsData.code !== 1000)) {
                 return Response.json({ 
                     success: false, 
-                    error: smsData.comment || smsRawText || 'Failed to send SMS.'
+                    error: smsData.comment || smsRawText || 'Failed to send OTP.'
                 }, { status: 400 });
             }
 
             return Response.json({ 
                 success: true, 
-                message: 'OTP sent successfully'
+                message: 'OTP sent via SMS'
             });
 
         } else {
