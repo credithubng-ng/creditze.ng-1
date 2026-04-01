@@ -80,14 +80,14 @@ Deno.serve(async (req) => {
             const whatsappBaseUrl = Deno.env.get('WHATSAPP_OTP_BASE_URL');
             let whatsappSent = false;
 
-            const whatsappToken = Deno.env.get('WHATSAPP_API_TOKEN');
-            if (whatsappBaseUrl && whatsappToken) {
+            const whatsappApiKey = Deno.env.get('WHATSAPP_API_TOKEN');
+            if (whatsappBaseUrl && whatsappApiKey) {
                 try {
                     console.log('Sending OTP via WhatsApp to:', intlPhone);
                     const waResponse = await fetch(whatsappBaseUrl, {
                         method: 'POST',
                         headers: {
-                            'Authorization': `Bearer ${whatsappToken}`,
+                            'Authorization': `Api-Key ${whatsappApiKey}`,
                             'Content-Type': 'application/json'
                         },
                         body: JSON.stringify({
