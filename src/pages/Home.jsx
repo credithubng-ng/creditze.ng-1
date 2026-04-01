@@ -136,18 +136,30 @@ export default function Home() {
                 size="lg"
                 className="bg-emerald-600 hover:bg-emerald-700 text-white rounded-full px-8 py-6 text-lg"
               >
-                Apply Now <ArrowRight className="ml-2 w-5 h-5" />
+                {isAuthenticated ? 'Go to Dashboard' : 'Apply Now'} <ArrowRight className="ml-2 w-5 h-5" />
               </Button>
-              <Button 
-                variant="outline"
-                size="lg"
-                className="rounded-full px-8 py-6 text-lg border-2"
-                asChild
-              >
-                <Link to={createPageUrl('HowItWorks')}>
-                  Learn More
-                </Link>
-              </Button>
+              {!isAuthenticated && (
+                <Button 
+                  size="lg"
+                  variant="outline"
+                  className="rounded-full px-8 py-6 text-lg border-2 border-emerald-600 text-emerald-700 hover:bg-emerald-50"
+                  onClick={() => base44.auth.redirectToLogin(createPageUrl('Dashboard'))}
+                >
+                  Login
+                </Button>
+              )}
+              {isAuthenticated && (
+                <Button 
+                  variant="outline"
+                  size="lg"
+                  className="rounded-full px-8 py-6 text-lg border-2"
+                  asChild
+                >
+                  <Link to={createPageUrl('HowItWorks')}>
+                    Learn More
+                  </Link>
+                </Button>
+              )}
             </div>
           </motion.div>
         </div>
