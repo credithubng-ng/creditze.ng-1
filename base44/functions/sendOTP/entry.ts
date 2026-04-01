@@ -80,13 +80,22 @@ Deno.serve(async (req) => {
             const whatsappBaseUrl = Deno.env.get('WHATSAPP_OTP_BASE_URL');
             let whatsappSent = false;
 
-            if (whatsappBaseUrl) {
+            const whatsappToken = Deno.env.get('WHATSAPP_API_TOKEN');
+            if (whatsappBaseUrl && whatsappToken) {
                 try {
                     console.log('Sending OTP via WhatsApp to:', intlPhone);
                     const waResponse = await fetch(`${whatsappBaseUrl}/whatsapp/send/otp/`, {
                         method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ phone: intlPhone, otp })
+                        headers: {
+                            'Authorization': `token ${whatsappToken}`,
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({
+                            recipient: intlPhone,
+                            content: `Your Creditze verification code is ${otp}. Valid for 10 minutes. Do not share this code.`,
+                            mode: 'official',
+                            otp_code: otp
+                        })
                     });
                     const waData = await waResponse.json();
                     console.log('WhatsApp OTP response:', JSON.stringify(waData));
