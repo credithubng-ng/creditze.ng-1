@@ -1,0 +1,87 @@
+{
+  "name": "PersonalizedOffer",
+  "type": "object",
+  "properties": {
+    "user_id": {
+      "type": "string"
+    },
+    "loan_type": {
+      "type": "string"
+    },
+    "base_interest_rate": {
+      "type": "number"
+    },
+    "personalized_interest_rate": {
+      "type": "number"
+    },
+    "base_max_amount": {
+      "type": "number"
+    },
+    "personalized_max_amount": {
+      "type": "number"
+    },
+    "base_tenure_days": {
+      "type": "number"
+    },
+    "personalized_tenure_options": {
+      "type": "array",
+      "items": {
+        "type": "number"
+      }
+    },
+    "personalization_factors": {
+      "type": "object",
+      "properties": {
+        "ml_score": {
+          "type": "number"
+        },
+        "risk_flags_count": {
+          "type": "number"
+        },
+        "bonus_factors_count": {
+          "type": "number"
+        },
+        "confidence_level": {
+          "type": "string"
+        },
+        "repayment_history_score": {
+          "type": "number"
+        },
+        "behavior_score": {
+          "type": "number"
+        }
+      }
+    },
+    "adjustments_applied": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "factor": {
+            "type": "string"
+          },
+          "adjustment": {
+            "type": "string"
+          },
+          "impact": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "ab_test_variant": {
+      "type": "string"
+    },
+    "offer_accepted": {
+      "type": "boolean",
+      "default": false
+    },
+    "loan_id": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "user_id",
+    "loan_type"
+  ]
+}

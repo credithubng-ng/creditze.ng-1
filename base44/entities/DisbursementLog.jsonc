@@ -1,0 +1,82 @@
+{
+  "name": "DisbursementLog",
+  "type": "object",
+  "properties": {
+    "loan_id": {
+      "type": "string",
+      "description": "Reference to loan application"
+    },
+    "user_id": {
+      "type": "string"
+    },
+    "amount": {
+      "type": "number",
+      "description": "Disbursement amount in Naira"
+    },
+    "bank_name": {
+      "type": "string"
+    },
+    "account_number": {
+      "type": "string"
+    },
+    "account_name": {
+      "type": "string"
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "pending",
+        "processing",
+        "successful",
+        "failed",
+        "retrying"
+      ],
+      "default": "pending"
+    },
+    "attempt_number": {
+      "type": "number",
+      "default": 1
+    },
+    "max_retries": {
+      "type": "number",
+      "default": 3
+    },
+    "payment_reference": {
+      "type": "string",
+      "description": "Payment provider reference"
+    },
+    "provider_response": {
+      "type": "object",
+      "description": "Response from payment provider"
+    },
+    "error_message": {
+      "type": "string"
+    },
+    "initiated_by": {
+      "type": "string",
+      "enum": [
+        "system",
+        "admin"
+      ],
+      "default": "system"
+    },
+    "admin_id": {
+      "type": "string"
+    },
+    "disbursement_date": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "next_retry_at": {
+      "type": "string",
+      "format": "date-time"
+    }
+  },
+  "required": [
+    "loan_id",
+    "user_id",
+    "amount",
+    "bank_name",
+    "account_number"
+  ]
+}

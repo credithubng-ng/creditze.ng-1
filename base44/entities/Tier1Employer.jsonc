@@ -1,0 +1,46 @@
+{
+  "name": "Tier1Employer",
+  "type": "object",
+  "properties": {
+    "company_name": {
+      "type": "string"
+    },
+    "tier": {
+      "type": "number",
+      "default": 1
+    },
+    "approved_domains": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "List of approved email domains"
+    },
+    "email_templates": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "Email format templates e.g. firstname.lastname, firstinitiallastname"
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "active",
+        "inactive"
+      ],
+      "default": "active"
+    },
+    "max_loan_amount": {
+      "type": "number",
+      "description": "Maximum loan amount for employees"
+    },
+    "logo_url": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "company_name",
+    "approved_domains"
+  ]
+}

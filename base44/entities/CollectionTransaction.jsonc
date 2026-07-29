@@ -1,0 +1,77 @@
+{
+  "name": "CollectionTransaction",
+  "type": "object",
+  "properties": {
+    "loan_id": {
+      "type": "string",
+      "description": "Reference to the loan"
+    },
+    "user_id": {
+      "type": "string"
+    },
+    "mandate_id": {
+      "type": "string",
+      "description": "Reference to DirectDebitMandate"
+    },
+    "amount": {
+      "type": "number",
+      "description": "Amount attempted to collect"
+    },
+    "collection_type": {
+      "type": "string",
+      "enum": [
+        "auto_debit",
+        "manual_collection",
+        "partial_payment"
+      ],
+      "default": "auto_debit"
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "pending",
+        "processing",
+        "successful",
+        "failed",
+        "reversed"
+      ],
+      "default": "pending"
+    },
+    "paystack_reference": {
+      "type": "string"
+    },
+    "authorization_code": {
+      "type": "string"
+    },
+    "gateway_response": {
+      "type": "string"
+    },
+    "failure_reason": {
+      "type": "string"
+    },
+    "attempt_number": {
+      "type": "number",
+      "default": 1
+    },
+    "retry_scheduled_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "initiated_by": {
+      "type": "string",
+      "enum": [
+        "system",
+        "admin"
+      ],
+      "default": "system"
+    },
+    "admin_id": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "loan_id",
+    "user_id",
+    "amount"
+  ]
+}

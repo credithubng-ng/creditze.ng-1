@@ -1,0 +1,51 @@
+{
+  "name": "ReferralReward",
+  "type": "object",
+  "properties": {
+    "user_id": {
+      "type": "string"
+    },
+    "referral_id": {
+      "type": "string",
+      "description": "Reference to UserReferral"
+    },
+    "reward_type": {
+      "type": "string",
+      "enum": [
+        "cash",
+        "interest_discount",
+        "credit_boost"
+      ],
+      "description": "Type of reward"
+    },
+    "reward_value": {
+      "type": "number",
+      "description": "Cash amount or percentage discount"
+    },
+    "description": {
+      "type": "string"
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "pending",
+        "active",
+        "used",
+        "expired"
+      ],
+      "default": "pending"
+    },
+    "applied_to_loan_id": {
+      "type": "string"
+    },
+    "expires_at": {
+      "type": "string",
+      "format": "date-time"
+    }
+  },
+  "required": [
+    "user_id",
+    "reward_type",
+    "reward_value"
+  ]
+}

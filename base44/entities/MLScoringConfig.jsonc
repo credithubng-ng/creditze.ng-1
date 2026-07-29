@@ -1,0 +1,139 @@
+{
+  "name": "MLScoringConfig",
+  "type": "object",
+  "properties": {
+    "config_key": {
+      "type": "string",
+      "default": "default"
+    },
+    "enable_ml_scoring": {
+      "type": "boolean",
+      "default": true
+    },
+    "ml_score_weight": {
+      "type": "number",
+      "default": 30,
+      "description": "Weight of ML score in final score (0-100)"
+    },
+    "rule_score_weight": {
+      "type": "number",
+      "default": 70,
+      "description": "Weight of rule-based score in final score (0-100)"
+    },
+    "component_weights": {
+      "type": "object",
+      "properties": {
+        "transaction_analysis": {
+          "type": "number",
+          "default": 35
+        },
+        "behavioral_patterns": {
+          "type": "number",
+          "default": 25
+        },
+        "device_trust": {
+          "type": "number",
+          "default": 15
+        },
+        "identity_consistency": {
+          "type": "number",
+          "default": 25
+        }
+      }
+    },
+    "thresholds": {
+      "type": "object",
+      "properties": {
+        "min_monthly_inflow": {
+          "type": "number",
+          "default": 30000
+        },
+        "max_gambling_ratio": {
+          "type": "number",
+          "default": 0.1
+        },
+        "min_account_age_months": {
+          "type": "number",
+          "default": 3
+        },
+        "max_bounced_debits": {
+          "type": "number",
+          "default": 2
+        },
+        "min_salary_consistency": {
+          "type": "number",
+          "default": 0.7
+        },
+        "min_session_duration": {
+          "type": "number",
+          "default": 60
+        },
+        "max_form_abandonment": {
+          "type": "number",
+          "default": 0.5
+        },
+        "min_profile_completeness": {
+          "type": "number",
+          "default": 80
+        }
+      }
+    },
+    "risk_flag_penalties": {
+      "type": "object",
+      "properties": {
+        "vpn_detected": {
+          "type": "number",
+          "default": 10
+        },
+        "multiple_devices": {
+          "type": "number",
+          "default": 5
+        },
+        "gambling_detected": {
+          "type": "number",
+          "default": 15
+        },
+        "bounced_debits": {
+          "type": "number",
+          "default": 20
+        },
+        "inconsistent_location": {
+          "type": "number",
+          "default": 10
+        },
+        "rapid_application": {
+          "type": "number",
+          "default": 5
+        },
+        "low_balance_frequency": {
+          "type": "number",
+          "default": 10
+        }
+      }
+    },
+    "bonus_factors": {
+      "type": "object",
+      "properties": {
+        "salary_detected": {
+          "type": "number",
+          "default": 10
+        },
+        "long_account_age": {
+          "type": "number",
+          "default": 5
+        },
+        "consistent_login_pattern": {
+          "type": "number",
+          "default": 5
+        },
+        "complete_profile": {
+          "type": "number",
+          "default": 5
+        }
+      }
+    }
+  },
+  "required": [
+    "config_key"
+  ]
+}

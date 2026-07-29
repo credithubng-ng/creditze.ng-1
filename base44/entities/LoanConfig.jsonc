@@ -1,0 +1,70 @@
+{
+  "name": "LoanConfig",
+  "type": "object",
+  "properties": {
+    "config_key": {
+      "type": "string",
+      "description": "Unique config identifier"
+    },
+    "urgent_10k_base_amount": {
+      "type": "number",
+      "default": 10000
+    },
+    "urgent_10k_interest_rate": {
+      "type": "number",
+      "default": 15
+    },
+    "urgent_10k_tenure_days": {
+      "type": "number",
+      "default": 30
+    },
+    "urgent_10k_min_score": {
+      "type": "number",
+      "default": 60
+    },
+    "urgent_10k_increment_percent": {
+      "type": "number",
+      "default": 20,
+      "description": "Credit limit increase after successful repayment"
+    },
+    "tier1_min_score": {
+      "type": "number",
+      "default": 75
+    },
+    "tier1_min_amount": {
+      "type": "number",
+      "default": 50000
+    },
+    "tier1_max_amount": {
+      "type": "number",
+      "default": 5000000
+    },
+    "tier1_interest_rate": {
+      "type": "number",
+      "default": 12
+    },
+    "tier1_tenure_days": {
+      "type": "number",
+      "default": 90
+    },
+    "credit_search_fee": {
+      "type": "number",
+      "default": 850
+    },
+    "credit_report_validity_days": {
+      "type": "number",
+      "default": 90
+    },
+    "verification_link_validity_hours": {
+      "type": "number",
+      "default": 24
+    },
+    "default_affiliate_commission": {
+      "type": "number",
+      "default": 5
+    }
+  },
+  "required": [
+    "config_key"
+  ]
+}
